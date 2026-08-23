@@ -1,9 +1,10 @@
 # typed: true
 # frozen_string_literal: true
 
-# Frontress is defined in config/initializers/00_frontress.rb. Initializers are
-# not part of what Tapioca walks, so the module is declared here the same way
-# STEAM_API_KEY, SITE_URL and MAPS_DIR are.
+# Frontress is defined in config/frontress.rb, required from
+# config/application.rb. Config files are not part of what Tapioca walks, so
+# the module is declared here the same way STEAM_API_KEY, SITE_URL and
+# MAPS_DIR are.
 
 module Frontress
   APP_ID = ::T.let(nil, ::T.untyped)
@@ -25,4 +26,7 @@ module Frontress
   def self.maps_url; end
   def self.match_config_for(mode); end
   def self.coordinator_configured?; end
+  def self.storage_service; end
+  def self.zipfile_storage_service; end
+  def self.map_list; end
 end

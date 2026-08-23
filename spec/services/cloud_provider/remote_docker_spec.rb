@@ -99,7 +99,7 @@ RSpec.describe CloudProvider::RemoteDocker do
 
     it "passes CLIENT_PORT and STEAM_PORT env vars" do
       provider.create_server(cloud_server)
-      expect(ssh_session).to have_received(:exec!).with(a_string_matching(/-e CLIENT_PORT=40001.*-e STEAM_PORT=30001/))
+      expect(ssh_session).to have_received(:exec!).with(a_string_matching(/-e CLIENT_PORT=41001.*-e STEAM_PORT=30001/))
     end
 
     context "with non-default start_port" do
@@ -115,9 +115,9 @@ RSpec.describe CloudProvider::RemoteDocker do
       it "calculates port offset from absolute game port" do
         provider.create_server(cloud_server)
         # port_offset = (27115 - 27015) / 10 = 10
-        # ssh_port = 22010, client_port = 40011, steam_port = 30011
+        # ssh_port = 22010, client_port = 41011, steam_port = 30011
         expect(ssh_session).to have_received(:exec!).with(a_string_matching(/-e SSH_PORT=22010/))
-        expect(ssh_session).to have_received(:exec!).with(a_string_matching(/-e CLIENT_PORT=40011/))
+        expect(ssh_session).to have_received(:exec!).with(a_string_matching(/-e CLIENT_PORT=41011/))
       end
     end
 

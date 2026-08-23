@@ -19,7 +19,7 @@ class Reservation < ActiveRecord::Base
   has_many :stac_detections
   has_many :reservation_matches
 
-  has_one_attached :zipfile, service: :seaweedfs
+  has_one_attached :zipfile, service: Frontress.zipfile_storage_service
 
   before_validation :calculate_duration
   before_validation :default_democheck_mode

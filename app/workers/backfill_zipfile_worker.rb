@@ -37,7 +37,7 @@ class BackfillZipfileWorker
           io: file,
           filename: filename,
           content_type: "application/zip",
-          service_name: :seaweedfs
+          service_name: Frontress.zipfile_storage_service
         )
       end
       unless blob

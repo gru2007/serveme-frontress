@@ -59,10 +59,33 @@ class MapUpload < ActiveRecord::Base
     end
   end
 
+  # The configured map list, for a deployment with no object storage to list.
+  #
+  # An empty list here is not cosmetic: MapIsValidValidator refuses a first_map
+  # that is not in it, so "no maps" means "no reservation can name a map". See
+  # Frontress.map_list.
+  sig { returns(T::Array[T::Hash[Symbol, T.untyped]]) }
+  def self.configured_bucket_objects
+    Frontress.map_list.map do |map_name|
+      { key: "maps/#{map_name}.bsp", map_name: map_name, size: 0, uploader: nil, upload_date: nil }
+    end
+  end
+
+  # Whether uploads live somewhere we can list. Building the service is what
+  # raises when object storage is configured from missing credentials, so the
+  # question has to be asked inside a rescue.
+  sig { returns(T::Boolean) }
+  def self.object_storage?
+    ActiveStorage::Blob.service.respond_to?(:bucket)
+  rescue StandardError => e
+    Rails.logger.warn("MapUpload: no usable object storage (#{e.class}: #{e.message}), using the configured map list")
+    false
+  end
+
   sig { returns(T::Array[T::Hash[Symbol, T.untyped]]) }
   def self.fetch_bucket_objects
     return fake_bucket_objects if Rails.env.development?
-    return [] unless ActiveStorage::Blob.service.respond_to?(:bucket)
+    return configured_bucket_objects unless object_storage?
 
     # Fetch all map uploads with their users in a single query
     # This avoids N+1 queries by eager loading all associations
@@ -113,6 +136,12 @@ class MapUpload < ActiveRecord::Base
         upload_date: uploader_info&.created_at
       }
     end.sort_by { |h| h[:map_name].downcase }
+  rescue StandardError => e
+    # A bucket that exists but cannot be listed right now -- a network blip, a
+    # rotated key -- must not take out every page that shows a map. Fall back
+    # to the configured list, which is at worst out of date.
+    Rails.logger.error("MapUpload: could not list the map bucket (#{e.class}: #{e.message}), using the configured map list")
+    configured_bucket_objects
   end
 
   sig { returns(T::Hash[String, T::Hash[Symbol, T.untyped]]) }

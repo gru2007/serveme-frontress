@@ -17,6 +17,15 @@ module CloudProvider
 
     DEFAULT_VM_SSH_PORT = "2222"
 
+    # The base for srcds' own client port. It must not be 40001: that is the
+    # port serveme's log daemon listens on, and on a one-box deployment -- the
+    # site and the game servers on the same machine, which is the default here
+    # -- the first container would take it and the log daemon would never see a
+    # line. Containers run on the host's network, so a collision is a real one.
+    CLIENT_PORT_BASE = 41_001
+    STEAM_PORT_BASE = 30_001
+    SSH_PORT_BASE = 22_000
+
     sig { params(cloud_server: CloudServer, ssh_public_key: T.nilable(String), mode: Symbol).returns(T::Hash[String, T.untyped]) }
     def self.build(cloud_server, ssh_public_key:, mode:)
       new(cloud_server, ssh_public_key, mode).build
@@ -68,6 +77,9 @@ module CloudProvider
         env.merge!(match_env(res))
       end
       env["DISCORD_STAC_WEBHOOK_URL"] = discord_webhook if discord_webhook.present?
+      if (token = gslt)
+        env["GSLT"] = token
+      end
       env
     end
 
@@ -104,13 +116,30 @@ module CloudProvider
         {
           "PORT"        => game.to_s,
           "TV_PORT"     => (game + 5).to_s,
-          "SSH_PORT"    => (22000 + offset).to_s,
-          "CLIENT_PORT" => (40001 + offset).to_s,
-          "STEAM_PORT"  => (30001 + offset).to_s
+          "SSH_PORT"    => (SSH_PORT_BASE + offset).to_s,
+          "CLIENT_PORT" => (CLIENT_PORT_BASE + offset).to_s,
+          "STEAM_PORT"  => (STEAM_PORT_BASE + offset).to_s
         }
       else
         raise ArgumentError, "unknown ContainerEnv mode: #{@mode.inspect}"
       end
+    end
+
+    # A Game Server Login Token for the game's AppID. Without one a server runs,
+    # but players connect with no inventory.
+    #
+    # A token belongs to one running server at a time -- two servers presenting
+    # the same one knock each other off Steam -- so FRONTRESS_GSLT takes a
+    # comma-separated list and each container gets the one for its port slot.
+    # One token is fine for one server at a time; a host running four wants
+    # four.
+    sig { returns(T.nilable(String)) }
+    def gslt
+      tokens = ENV.fetch("FRONTRESS_GSLT", "").split(",").map(&:strip).reject(&:empty?)
+      return nil if tokens.empty?
+
+      slot = (@cloud_server.port.to_i - 27_015) / 10
+      tokens[slot % tokens.size]
     end
 
     sig { returns(T.nilable(Reservation)) }

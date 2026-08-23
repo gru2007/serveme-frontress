@@ -45,7 +45,7 @@ RSpec.describe ZipUploadWorker, type: :worker do
         expect(reservation.zipfile).to be_attached
         expect(reservation.zipfile.filename.to_s).to eq('test.zip')
         expect(reservation.zipfile.content_type).to eq('application/zip')
-        expect(reservation.zipfile.blob.service_name).to eq('seaweedfs')
+        expect(reservation.zipfile.blob.service_name).to eq(Frontress.zipfile_storage_service.to_s)
         expect(reservation.reservation_statuses.pluck(:status)).to include('Finished uploading zip file to storage')
       end
 
@@ -64,7 +64,7 @@ RSpec.describe ZipUploadWorker, type: :worker do
           content_type: 'application/zip',
           byte_size: zipfile_size,
           checksum: SecureRandom.hex,
-          service_name: 'seaweedfs'
+          service_name: Frontress.zipfile_storage_service.to_s
         )
       end
       let(:incomplete_blob) do
@@ -74,7 +74,7 @@ RSpec.describe ZipUploadWorker, type: :worker do
           content_type: 'application/zip',
           byte_size: zipfile_size - 100, # Incomplete upload
           checksum: SecureRandom.hex,
-          service_name: 'seaweedfs'
+          service_name: Frontress.zipfile_storage_service.to_s
         )
       end
 
@@ -170,7 +170,7 @@ RSpec.describe ZipUploadWorker, type: :worker do
           content_type: 'application/zip',
           byte_size: 100,
           checksum: SecureRandom.hex,
-          service_name: 'seaweedfs'
+          service_name: Frontress.zipfile_storage_service.to_s
         )
         ActiveStorage::Attachment.create!(
           name: 'zipfile',

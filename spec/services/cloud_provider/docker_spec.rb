@@ -31,7 +31,7 @@ RSpec.describe CloudProvider::Docker do
         expect(args).to include("-e", "PORT=27015")
         expect(args).to include("-e", "TV_PORT=27020")
         expect(args).to include("-e", "SSH_PORT=22000")
-        expect(args).to include("-e", "CLIENT_PORT=40001")
+        expect(args).to include("-e", "CLIENT_PORT=41001")
         expect(args).to include("-e", "STEAM_PORT=30001")
         expect(args).to include(Frontress::SERVER_IMAGE)
       end
@@ -47,7 +47,7 @@ RSpec.describe CloudProvider::Docker do
           expect(args).to include("-e", "PORT=27025")
           expect(args).to include("-e", "TV_PORT=27030")
           expect(args).to include("-e", "SSH_PORT=22001")
-          expect(args).to include("-e", "CLIENT_PORT=40002")
+          expect(args).to include("-e", "CLIENT_PORT=41002")
           expect(args).to include("-e", "STEAM_PORT=30002")
         end
       end

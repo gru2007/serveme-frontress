@@ -29,7 +29,8 @@ Serveme::Application.configure do
   # Expands the lines which load the assets
   config.assets.debug = true
   config.cache_store = :redis_cache_store, { db: 1, expires_in: 1.second }
-  config.active_storage.service = :cloudflare
+  # Object storage when it is configured, the local disk when it is not.
+  config.active_storage.service = Frontress.storage_service
 
   config.eager_load = false
 

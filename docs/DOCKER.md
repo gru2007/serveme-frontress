@@ -85,7 +85,8 @@ docker compose exec web bin/rails frontress:doctor
 The compose path deliberately does not need `RAILS_MASTER_KEY`. What you give
 up by leaving it empty:
 
-- Cloudflare (R2 map uploads, DNS), Stripe and PayPal
+- Cloudflare (R2 map uploads, DNS), Stripe and PayPal — uploads fall back to
+  the local disk (the `storage` volume), so they work, they just live here
 - Discord OAuth and the ban-appeal workflow
 - the paid VM cloud providers (Hetzner, Vultr, Kamatera). Docker hosts and the
   local docker daemon do not need it
@@ -104,6 +105,22 @@ and the cloud providers:
 
 If you do have `config/credentials/production.key`, put its contents in
 `RAILS_MASTER_KEY` and everything above becomes available again.
+
+## Maps
+
+With no object storage configured, there is no bucket to list, so the maps this
+site knows about are the ones in `FRONTRESS_MAPS` — and when that is empty,
+every map named in `config/league_maps.yml`.
+
+That list is load-bearing in three places at once: it fills the map picker, it
+is what `/api/maps.txt` serves to every container at boot, and it is what a
+reservation's map is validated against. A map that is not in it cannot be
+reserved, so adding a map to the pool means adding it there (and putting the
+`.bsp` where servers can get it — `FRONTRESS_FASTDL_URL`, or baked into the
+image).
+
+Point `ACTIVE_STORAGE_SERVICE` at a service in `config/storage.yml` once you
+have object storage, and the bucket listing takes over again.
 
 ## GeoIP
 

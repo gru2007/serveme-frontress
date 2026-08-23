@@ -40,7 +40,7 @@ class ZipUploadWorker
         io: file,
         filename: File.basename(reservation.local_zipfile_path.to_s),
         content_type: "application/zip",
-        service_name: :seaweedfs
+        service_name: Frontress.zipfile_storage_service
       )
       Rails.logger.info("ZipUploadWorker: Blob created for reservation #{reservation.id}, key: #{blob.key}") if blob
       blob
@@ -79,7 +79,7 @@ class ZipUploadWorker
   sig { params(reservation: Reservation).returns(T.nilable(ActiveStorage::Blob)) }
   def find_recent_blob(reservation)
     filename = File.basename(reservation.local_zipfile_path.to_s)
-    ActiveStorage::Blob.where(filename: filename, service_name: :seaweedfs)
+    ActiveStorage::Blob.where(filename: filename, service_name: Frontress.zipfile_storage_service)
                        .where("created_at > ?", 1.hour.ago)
                        .order(created_at: :desc)
                        .first

@@ -12,6 +12,8 @@ namespace :frontress do
       "Default map" => Frontress::DEFAULT_MAP,
       "FastDL" => Frontress::FASTDL_URL.presence || "(none: clients get only what the image ships)",
       "Map list" => Frontress.maps_url,
+      "Maps known" => MapUpload.available_maps.size,
+      "Uploads" => Frontress.storage_service,
       "Local docker" => CloudProvider::Docker.enabled? ? "on (max #{CloudProvider::Docker.max_containers} containers)" : "off",
       "Remote docker hosts" => DockerHost.active.count,
       "Coordinator" => Frontress::COORDINATOR_URL.presence || "(none)",

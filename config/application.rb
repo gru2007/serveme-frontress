@@ -3,6 +3,12 @@
 
 require File.expand_path("boot", __dir__)
 
+# What makes this serveme a Team Frontress serveme: AppIDs, the game directory,
+# the server image, the coordinator. Loaded here rather than from
+# config/initializers because config/environments/*.rb reads it, and those run
+# first.
+require File.expand_path("frontress", __dir__)
+
 %w[
   active_record/railtie
   action_controller/railtie

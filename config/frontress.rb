@@ -12,7 +12,10 @@
 # Everything here is overridable from the environment, because the whole
 # deployment story of this fork is one .env and `docker compose up`.
 #
-# Named 00_ so it is loaded before anything that reads it.
+# It is required from config/application.rb rather than living in
+# config/initializers, because config/environments/production.rb reads it and
+# environment files are loaded before initializers. Nothing here touches Rails
+# at load time -- only ENV -- so being that early is safe.
 module Frontress
   # The game clients and dedicated servers both run as. This is what a Steam
   # auth ticket is issued for and what a GSLT is created against.
@@ -73,6 +76,47 @@ module Frontress
     ENV["FRONTRESS_MAPS_URL"].presence || "#{SITE_URL}/api/maps.txt"
   end
 
+  # Where uploads live: maps, log zips, avatars.
+  #
+  # Upstream stores them in Cloudflare R2 and SeaweedFS, both of which are
+  # configured through Rails credentials. A deployment without credentials --
+  # which this fork's docker path deliberately supports -- used to get an S3
+  # client built from nils, and *every* page that lists maps died on it with a
+  # 500. So the default is the local disk, and object storage is opt-in.
+  #
+  # ACTIVE_STORAGE_SERVICE names a service from config/storage.yml; the
+  # credential check keeps existing R2 deployments on R2 without setting it.
+  def self.storage_service
+    return ENV["ACTIVE_STORAGE_SERVICE"].to_sym if ENV["ACTIVE_STORAGE_SERVICE"].present?
+    return :cloudflare if Rails.application.credentials.dig(:cloudflare, :access_key_id).present?
+
+    :local
+  end
+
+  # Reservation zip files (logs and demos) are attached to their own service
+  # upstream, because they are large and short-lived.
+  def self.zipfile_storage_service
+    return ENV["ZIPFILE_STORAGE_SERVICE"].to_sym if ENV["ZIPFILE_STORAGE_SERVICE"].present?
+    return :seaweedfs if Rails.application.credentials.dig(:seaweedfs, :endpoint).present?
+
+    storage_service
+  end
+
+  # The maps a server can be asked to play, when there is no object storage to
+  # list. FRONTRESS_MAPS overrides; otherwise it is every map named in
+  # config/league_maps.yml, which is the list this site's map picker, its
+  # /api/maps.txt (which each container reads at boot) and its "does this map
+  # exist" validation all agree on.
+  def self.map_list
+    from_env = ENV.fetch("FRONTRESS_MAPS", "").split(/[\s,]+/).reject(&:empty?)
+    return from_env if from_env.any?
+
+    LeagueMaps.all_league_maps
+  rescue StandardError => e
+    Rails.logger&.warn("Frontress.map_list: #{e.class}: #{e.message}")
+    []
+  end
+
   # The game coordinator. Reservations it creates are matchmaking reservations,
   # and the agent inside each container reports the match back to it.
   COORDINATOR_URL = ENV.fetch("FRONTRESS_COORDINATOR_URL", "").freeze
@@ -97,11 +141,4 @@ module Frontress
   def self.coordinator_configured?
     COORDINATOR_URL.present? && COORDINATOR_SECRET.present?
   end
-end
-
-if Frontress::COORDINATOR_URL.blank? && !Rails.env.test?
-  Rails.logger&.info(
-    "No game coordinator configured. Reservations still work; matchmaking has nothing to talk to. " \
-    "Set FRONTRESS_COORDINATOR_URL and FRONTRESS_COORDINATOR_SECRET to connect one."
-  )
 end

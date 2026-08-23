@@ -24,6 +24,29 @@ describe MapUpload do
     expect(subject.errors.full_messages).to include('File not a map (bsp) file')
   end
 
+  # A deployment with no object storage configured -- the docker path, which
+  # deliberately works without Rails credentials -- used to build an S3 client
+  # out of nils, and every page that lists maps died with a 500: the map
+  # picker, /api/maps.txt, and the "does this map exist" validation.
+  describe '.fetch_bucket_objects without object storage' do
+    before do
+      allow(ActiveStorage::Blob).to receive(:service).and_raise(StandardError.new("missing credentials"))
+      allow(Frontress).to receive(:map_list).and_return(%w[koth_product_final cp_process_final])
+    end
+
+    it 'falls back to the configured map list instead of raising' do
+      result = MapUpload.fetch_bucket_objects
+
+      expect(result.map { |o| o[:map_name] }).to eq(%w[koth_product_final cp_process_final])
+    end
+
+    it 'keeps the map validation working, so a reservation can still name a map' do
+      allow(MapUpload).to receive(:bucket_objects).and_return(MapUpload.fetch_bucket_objects)
+
+      expect(MapUpload.available_maps).to include('koth_product_final')
+    end
+  end
+
   describe '.fetch_bucket_objects' do
     before do
       allow(ActiveStorage::Blob.service).to receive(:respond_to?).and_call_original

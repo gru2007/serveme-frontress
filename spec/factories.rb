@@ -84,7 +84,7 @@ FactoryBot.define do
           content_type: 'application/zip',
           byte_size: 100,
           checksum: SecureRandom.hex,
-          service_name: 'seaweedfs'
+          service_name: Frontress.zipfile_storage_service.to_s
         )
         ActiveStorage::Attachment.create!(
           name: 'zipfile',

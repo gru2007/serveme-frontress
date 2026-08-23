@@ -71,5 +71,8 @@ Serveme::Application.configure do
     }
   end
 
-  config.active_storage.service = :cloudflare
+  # Object storage when it is configured, the local disk when it is not. See
+  # Frontress.storage_service: an S3 client built from missing credentials used
+  # to take out every page that lists maps.
+  config.active_storage.service = Frontress.storage_service
 end

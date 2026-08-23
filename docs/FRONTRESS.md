@@ -76,6 +76,64 @@ docker build -t ghcr.io/gru2007/frontress-server:latest \
   docker/frontress-server
 ```
 
+## Ports
+
+Containers run on the **host's** network, so every port below is a port on the
+machine running them, and the slots are per container: the first container gets
+27015, the second 27025, and so on in steps of ten.
+
+| | | |
+| --- | --- | --- |
+| `27015 + 10n` | udp+tcp | the game, and RCON. Must be reachable by players |
+| `27020 + 10n` | udp | SourceTV |
+| `41001 + n` | udp | srcds' own client port |
+| `30001 + n` | udp | the Steam port |
+| `22000 + n` | tcp | sshd in the container, so serveme can push configs. LAN or localhost only |
+| `40001` | udp | serveme's log daemon. Every game server sends its console log here |
+| `3000` | tcp | the site, behind your proxy (`SERVEME_HTTP_PORT`) |
+| `27100` | tcp | the coordinator, reachable by game clients (`listen`) |
+
+The client port starts at 41001 rather than 40001 on purpose: 40001 is the log
+daemon's, and on a one-box deployment the first container would take it and no
+log would ever arrive.
+
+For players you need `27015 + 10n` open per container, in both protocols. For a
+box that hosts four servers, that is 27015-27055.
+
+## GSLTs
+
+A Game Server Login Token for AppID 5147520 (from
+[managegameservers](https://steamcommunity.com/dev/managegameservers)) is what
+gives connecting players their inventory. A token belongs to one running server
+at a time, so `FRONTRESS_GSLT` takes a list and each container gets the one for
+its port slot:
+
+```bash
+FRONTRESS_GSLT=token1,token2,token3,token4
+```
+
+Give it as many tokens as the machine runs containers. Without any, servers
+still run and players connect without items.
+
+## Maps
+
+The map list is one list with three jobs: the picker on the reservation form,
+`/api/maps.txt` (which every container fetches at boot), and the validation
+that decides whether a reservation may name a given map. A map missing from it
+cannot be reserved at all.
+
+Where it comes from, in order:
+
+| | |
+| --- | --- |
+| `FRONTRESS_MAPS` | an explicit space- or comma-separated list |
+| `config/league_maps.yml` | every map named there, when the above is empty |
+| the bucket | when `ACTIVE_STORAGE_SERVICE` points at object storage, its `maps/` prefix wins |
+
+Serving the `.bsp` itself is a separate question: either bake it into the image
+or put it behind `FRONTRESS_FASTDL_URL`, which the container downloads its first
+map from and which clients download what they are missing from.
+
 ## The coordinator
 
 The matchmaking coordinator (`services/coordinator` in the game repository)

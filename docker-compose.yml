@@ -56,6 +56,10 @@ x-app: &app
     FRONTRESS_SERVER_VERSION: ${FRONTRESS_SERVER_VERSION:-}
     FRONTRESS_FASTDL_URL: ${FRONTRESS_FASTDL_URL:-}
     FRONTRESS_DEFAULT_MAP: ${FRONTRESS_DEFAULT_MAP:-koth_product_final}
+    FRONTRESS_GSLT: ${FRONTRESS_GSLT:-}
+    FRONTRESS_MAPS: ${FRONTRESS_MAPS:-}
+    ACTIVE_STORAGE_SERVICE: ${ACTIVE_STORAGE_SERVICE:-}
+    ZIPFILE_STORAGE_SERVICE: ${ZIPFILE_STORAGE_SERVICE:-}
     # A container is on the host's network, so it cannot reach this app on a
     # compose-internal name. These are how it gets back to us.
     DOCKER_HOST_IP: ${DOCKER_HOST_IP:-}
@@ -68,6 +72,9 @@ x-app: &app
     # a few gigabytes on every restart is not a cache.
     - uploads:/rails/public/uploads
     - system:/rails/public/system
+    # Active Storage on the local disk: map uploads and reservation zip files
+    # live here when no object storage is configured, which is the default.
+    - storage:/rails/storage
     - server_logs:/rails/server_logs
     - rails_logs:/rails/log
     - maps:/rails/tmp/maps
@@ -187,6 +194,7 @@ volumes:
   redis_data:
   uploads:
   system:
+  storage:
   server_logs:
   rails_logs:
   maps:
