@@ -77,7 +77,7 @@ describe CloudServer do
     it 'uses explicit key auth with key_data, keys_only, and verify_host_key' do
       subject.stub(ip: '1.2.3.4')
       allow(subject).to receive(:cloud_ssh_private_key).and_return('fake-key')
-      Net::SSH.should_receive(:start).with('1.2.3.4', 'tf2',
+      Net::SSH.should_receive(:start).with('1.2.3.4', Frontress::SERVER_USER,
         hash_including(
           port: 22,
           key_data: [ 'fake-key' ],

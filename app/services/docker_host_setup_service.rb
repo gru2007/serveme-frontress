@@ -174,7 +174,7 @@ class DockerHostSetupService
       # doesn't exist until provision_host runs setup_app_user.
       host = docker_host.ip
       user = "root"
-      key_data = Rails.application.credentials.dig(:cloud_servers, :ssh_private_key)
+      key_data = Frontress.ssh_private_key
       if key_data.present?
         opts[:key_data] = [ key_data ]
         opts[:keys_only] = true
@@ -472,7 +472,7 @@ class DockerHostSetupService
 
   sig { returns(T.nilable(String)) }
   def cloud_ssh_public_key
-    key_data = Rails.application.credentials.dig(:cloud_servers, :ssh_private_key)
+    key_data = Frontress.ssh_private_key
     return nil unless key_data.present?
 
     key = Net::SSH::KeyFactory.load_data_private_key(key_data)

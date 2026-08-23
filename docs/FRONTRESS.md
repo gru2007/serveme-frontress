@@ -59,7 +59,12 @@ same box as the site, up to `FRONTRESS_LOCAL_DOCKER_MAX_CONTAINERS`.
 
 **Other machines.** Add them under `/admin/docker_hosts`. Each one is set up
 over SSH by `DockerHostSetupService` — docker, the seccomp profile, the image
-pull — and then hosts up to `max_containers` at a time.
+pull — and then hosts up to `max_containers` at a time. A host you add by hand
+needs this site's public key in root's `authorized_keys`:
+
+```bash
+docker compose exec web bin/rails frontress:ssh_key
+```
 
 Both appear to the API as servers with ids at or above `1_000_000_000`, which
 is how the coordinator's `prefer_docker` tells them apart from machines
@@ -71,10 +76,18 @@ workflow (`frontress-dedicated-linux.tar.gz`) rather than building the game, so
 building it takes minutes, not an afternoon.
 
 ```bash
-docker build -t ghcr.io/gru2007/frontress-server:latest \
-  --build-arg FRONTRESS_VERSION=120125 \
-  docker/frontress-server
+docker build -t ghcr.io/gru2007/frontress-server:latest --build-arg FRONTRESS_VERSION=120125 docker/frontress-server
 ```
+
+CI does the same thing on `.github/workflows/server-image.yml` and pushes to
+GHCR — run it by hand ("Game server image" → Run workflow) with the payload URL
+and build version, or let a change under `docker/frontress-server/` trigger it.
+Note the size: the base stage downloads the Steam Linux Runtime and TF2's
+content files, about 15GB, which is why the workflow clears the runner's disk
+first.
+
+Until the image exists somewhere `docker` can pull it from, provisioning fails
+with an image-not-found error, and no amount of correct configuration helps.
 
 ## Ports
 
@@ -99,6 +112,24 @@ log would ever arrive.
 
 For players you need `27015 + 10n` open per container, in both protocols. For a
 box that hosts four servers, that is 27015-27055.
+
+## The SSH key
+
+This app logs into every game server container over SSH — that is how
+`reservation.cfg` gets in and how logs and demos come out. Upstream keeps the
+keypair in Rails credentials; here there is a chain, ending in one that needs
+no setup:
+
+| | |
+| --- | --- |
+| `tmp/cloud_ssh_key` | a key file you manage |
+| `FRONTRESS_SSH_PRIVATE_KEY` | the PEM in the environment |
+| credentials | `cloud_servers.ssh_private_key`, as upstream |
+| generated | created on first use and kept in `site_settings` |
+
+The public half is handed to each container as it starts, so changing the key
+strands containers already running with the old one. `frontress:doctor` says
+which source is in use.
 
 ## GSLTs
 

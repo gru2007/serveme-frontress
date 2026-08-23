@@ -42,7 +42,7 @@ class CloudServer < RemoteServer
   def ssh
     raise "Cannot SSH to cloud server #{id}: no IP assigned yet (#{ip})" if ip.blank? || ip == "0.0.0.0"
 
-    @ssh ||= Net::SSH.start(ip, "tf2",
+    @ssh ||= Net::SSH.start(ip, Frontress::SERVER_USER,
       port: cloud_ssh_port || 22,
       key_data: [ cloud_ssh_private_key ],
       keys_only: true,
@@ -83,14 +83,16 @@ class CloudServer < RemoteServer
       out = []
       err = []
       opts = { timeout: 5, keepalive: true, keepalive_interval: 5, keepalive_maxcount: 2, bind_address: "0.0.0.0", port: docker_host.ssh_port }
-      if docker_host.provider?
-        key_data = Rails.application.credentials.dig(:cloud_servers, :ssh_private_key)
-        if key_data.present?
-          opts[:key_data] = [ key_data ]
-          opts[:keys_only] = true
-        end
-        opts[:verify_host_key] = :never
+      # Our own key, on every host. A VM this app created only has that one
+      # (keys_only); a host somebody added by hand may also be reachable with
+      # an agent key, so do not shut those out. There is no known_hosts inside
+      # a container to verify against either way.
+      key_data = Frontress.ssh_private_key
+      if key_data.present?
+        opts[:key_data] = [ key_data ]
+        opts[:keys_only] = docker_host.provider?
       end
+      opts[:verify_host_key] = :never
       Net::SSH.start(docker_host.hostname, docker_host.ssh_user, **opts) do |ssh|
         ssh.exec!(command) do |_channel, stream, data|
           out << data if stream == :stdout
@@ -273,8 +275,7 @@ class CloudServer < RemoteServer
 
   sig { returns(String) }
   def cloud_ssh_public_key
-    key = Net::SSH::KeyFactory.load_data_private_key(cloud_ssh_private_key)
-    "#{key.ssh_type} #{[ key.to_blob ].pack('m0')}"
+    Frontress.ssh_public_key
   end
 
   private
@@ -303,16 +304,12 @@ class CloudServer < RemoteServer
     end
   end
 
+  # The key to log into the container with. Never nil: without credentials one
+  # is generated and kept in the database, because a cloud server this app
+  # cannot SSH into is a cloud server it cannot configure. See Frontress.
   sig { returns(String) }
   def cloud_ssh_private_key
-    cloud_ssh_private_key_from_file ||
-      Rails.application.credentials.dig(:cloud_servers, :ssh_private_key)
-  end
-
-  sig { returns(T.nilable(String)) }
-  def cloud_ssh_private_key_from_file
-    path = Rails.root.join("tmp", "cloud_ssh_key")
-    File.read(path) if File.exist?(path)
+    Frontress.ssh_private_key
   end
 
   sig { override.returns(String) }
@@ -324,14 +321,14 @@ class CloudServer < RemoteServer
 
   sig { override.returns(String) }
   def scp_target
-    "tf2@#{ip}"
+    "#{Frontress::SERVER_USER}@#{ip}"
   end
 
   sig { override.params(block: T.untyped).returns(T.untyped) }
   def sftp_start(&block)
     raise "Cannot SFTP to cloud server #{id}: no IP assigned yet (#{ip})" if ip.blank? || ip == "0.0.0.0"
 
-    Net::SFTP.start(ip, "tf2", port: cloud_ssh_port || 22, key_data: [ cloud_ssh_private_key ], keys_only: true, non_interactive: true, verify_host_key: :never, timeout: 5, bind_address: "0.0.0.0", config: false, &block)
+    Net::SFTP.start(ip, Frontress::SERVER_USER, port: cloud_ssh_port || 22, key_data: [ cloud_ssh_private_key ], keys_only: true, non_interactive: true, verify_host_key: :never, timeout: 5, bind_address: "0.0.0.0", config: false, &block)
   end
 
   sig { returns(String) }

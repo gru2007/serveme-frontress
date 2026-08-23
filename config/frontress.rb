@@ -32,6 +32,10 @@ module Frontress
   # and the process are both tc2_linux64; srcds_run_64 is the wrapper script.
   SERVER_PROCESS = ENV.fetch("FRONTRESS_SERVER_PROCESS", "tc2_linux64").freeze
 
+  # The user inside a game server container. This app logs in as it over SSH to
+  # push configs and collect logs and demos; the image creates it.
+  SERVER_USER = ENV.fetch("FRONTRESS_SERVER_USER", "frontress").freeze
+
   # The container image every game server runs as. Building one is in
   # docker/frontress-server/.
   SERVER_IMAGE = ENV.fetch("FRONTRESS_SERVER_IMAGE", "ghcr.io/gru2007/frontress-server:latest").freeze
@@ -115,6 +119,65 @@ module Frontress
   rescue StandardError => e
     Rails.logger&.warn("Frontress.map_list: #{e.class}: #{e.message}")
     []
+  end
+
+  # The SSH keypair this app uses to reach game server containers.
+  #
+  # Upstream keeps it in Rails credentials, which a deployment without a master
+  # key does not have -- and a missing key is not a degraded feature here, it is
+  # "no server can ever be configured". So there is a fallback chain, ending in
+  # a keypair generated once and kept in the database, which is the only option
+  # that needs no setup at all.
+  #
+  #   tmp/cloud_ssh_key        a file, for a key you manage yourself
+  #   FRONTRESS_SSH_PRIVATE_KEY  the PEM in the environment
+  #   credentials              cloud_servers.ssh_private_key, as upstream
+  #   generated                created on first use, stored in site_settings
+  #
+  # The public half goes into each container as it starts, so a key that
+  # changes strands every container already running with the old one.
+  SSH_KEY_SETTING = "frontress_ssh_private_key"
+
+  def self.ssh_private_key
+    ssh_private_key_from_file ||
+      ENV["FRONTRESS_SSH_PRIVATE_KEY"].presence ||
+      Rails.application.credentials.dig(:cloud_servers, :ssh_private_key).presence ||
+      generated_ssh_private_key
+  end
+
+  def self.ssh_private_key_from_file
+    path = Rails.root.join("tmp", "cloud_ssh_key")
+    File.read(path) if File.exist?(path)
+  end
+
+  # The generated key, created once and shared by every process through the
+  # database. Behind the same lock the rest of the app uses, because two
+  # workers generating different keys at the same moment would each hand out a
+  # public key the other cannot log in with.
+  def self.generated_ssh_private_key
+    existing = SiteSetting.get(SSH_KEY_SETTING)
+    return existing if existing.present?
+
+    key = nil
+    $lock.synchronize("frontress-ssh-key", retries: 5, initial_wait: 0.2, expiry: 30) do
+      # Re-read inside the lock: whoever held it before us may have just
+      # written one.
+      key = SiteSetting.find_by(key: SSH_KEY_SETTING)&.value.presence
+      next if key
+
+      key = OpenSSL::PKey::RSA.new(2048).to_pem
+      SiteSetting.set(SSH_KEY_SETTING, key)
+      Rails.logger&.info("Frontress: generated an SSH keypair for game servers, stored in site_settings")
+    end
+    # Not from the block's return value: RemoteLock is not documented to pass
+    # it through, and a nil key here would fail much later and much worse.
+    key.presence || SiteSetting.find_by(key: SSH_KEY_SETTING)&.value.to_s
+  end
+
+  # The public half, in authorized_keys form.
+  def self.ssh_public_key
+    key = Net::SSH::KeyFactory.load_data_private_key(ssh_private_key)
+    "#{key.ssh_type} #{[ key.to_blob ].pack('m0')}"
   end
 
   # The game coordinator. Reservations it creates are matchmaking reservations,

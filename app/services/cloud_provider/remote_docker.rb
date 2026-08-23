@@ -103,14 +103,16 @@ module CloudProvider
       opts = { timeout: 5, keepalive: true, keepalive_interval: 5, keepalive_maxcount: 2, bind_address: "0.0.0.0", port: docker_host.ssh_port }
       user = docker_host.ssh_user
 
-      if docker_host.provider?
-        key_data = Rails.application.credentials.dig(:cloud_servers, :ssh_private_key)
-        if key_data.present?
-          opts[:key_data] = [ key_data ]
-          opts[:keys_only] = true
-        end
-        opts[:verify_host_key] = :never
+      # Our own key, on every host. A VM this app created only has that one
+      # (keys_only); a host somebody added by hand may also be reachable with
+      # an agent key, so do not shut those out. There is no known_hosts inside
+      # a container to verify against either way.
+      key_data = Frontress.ssh_private_key
+      if key_data.present?
+        opts[:key_data] = [ key_data ]
+        opts[:keys_only] = docker_host.provider?
       end
+      opts[:verify_host_key] = :never
 
       Net::SSH.start(docker_host.hostname, user, **opts, &block)
     end

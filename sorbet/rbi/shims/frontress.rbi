@@ -19,6 +19,8 @@ module Frontress
   COORDINATOR_SECRET = ::T.let(nil, ::T.untyped)
   MATCH_MODES = ::T.let(nil, ::T.untyped)
   MATCH_CONFIGS = ::T.let(nil, ::T.untyped)
+  SERVER_USER = ::T.let(nil, ::T.untyped)
+  SSH_KEY_SETTING = ::T.let(nil, ::T.untyped)
 
   def self.server_image_repo; end
   def self.server_image_registry; end
@@ -29,4 +31,8 @@ module Frontress
   def self.storage_service; end
   def self.zipfile_storage_service; end
   def self.map_list; end
+  def self.ssh_private_key; end
+  def self.ssh_public_key; end
+  def self.ssh_private_key_from_file; end
+  def self.generated_ssh_private_key; end
 end
