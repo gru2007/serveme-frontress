@@ -10,7 +10,7 @@ describe DockerHostImagePullWorker do
     context "without docker_host_id (fan-out mode)" do
       it "enqueues a job per active docker host" do
         host1 = create(:docker_host)
-        host2 = create(:docker_host, hostname: "de2.serveme.tf")
+        host2 = create(:docker_host, hostname: "gs2.example.org")
 
         expect(DockerHostImagePullWorker).to receive(:perform_async).with(host1.id)
         expect(DockerHostImagePullWorker).to receive(:perform_async).with(host2.id)

@@ -21,9 +21,13 @@ describe CloudImageBuildWorker do
   end
 
   before do
-    stub_const("SITE_HOST", "serveme.tf")
     # Only the deployment that owns the image builds it.
     stub_const("ENV", ENV.to_h.merge("FRONTRESS_BUILD_IMAGE" => "1"))
+    # A fork with more than one site lists the others here; the worker used to
+    # have four serveme.tf hostnames compiled into it.
+    stub_const("IpLookupSyncWorker::REGIONS", {
+      na: "https://na.example.org", sea: "https://sea.example.org", au: "https://au.example.org"
+    })
     allow(Sidekiq).to receive(:redis).and_yield(redis)
     allow(redis).to receive(:set).and_return(true)
     allow(redis).to receive(:del)
@@ -142,39 +146,39 @@ describe CloudImageBuildWorker do
 
     it "includes the built version in the cross-region notification payload" do
       allow(Rails.application.credentials).to receive(:dig).with(:serveme, anything).and_return("test-api-key")
-      %w[na.serveme.tf sea.serveme.tf au.serveme.tf].each do |host|
-        stub_request(:post, "https://direct.#{host}/api/docker_image_updates").to_return(status: 200)
+      %w[na sea au].each do |region|
+        stub_request(:post, "https://#{region}.example.org/api/docker_image_updates").to_return(status: 200)
       end
 
       worker.perform(build.id)
 
-      expect(WebMock).to have_requested(:post, "https://direct.na.serveme.tf/api/docker_image_updates")
+      expect(WebMock).to have_requested(:post, "https://na.example.org/api/docker_image_updates")
         .with { |req| JSON.parse(req.body)["version"] == version }
     end
 
     it "notifies other regions after successful push" do
       allow(Rails.application.credentials).to receive(:dig).with(:serveme, anything).and_return("test-api-key")
-      %w[na.serveme.tf sea.serveme.tf au.serveme.tf].each do |host|
-        stub_request(:post, "https://direct.#{host}/api/docker_image_updates").to_return(status: 200)
+      %w[na sea au].each do |region|
+        stub_request(:post, "https://#{region}.example.org/api/docker_image_updates").to_return(status: 200)
       end
 
       worker.perform(build.id)
 
-      expect(WebMock).to have_requested(:post, "https://direct.na.serveme.tf/api/docker_image_updates")
-      expect(WebMock).to have_requested(:post, "https://direct.sea.serveme.tf/api/docker_image_updates")
-      expect(WebMock).to have_requested(:post, "https://direct.au.serveme.tf/api/docker_image_updates")
+      expect(WebMock).to have_requested(:post, "https://na.example.org/api/docker_image_updates")
+      expect(WebMock).to have_requested(:post, "https://sea.example.org/api/docker_image_updates")
+      expect(WebMock).to have_requested(:post, "https://au.example.org/api/docker_image_updates")
     end
 
     it "continues notifying other regions when one fails" do
       allow(Rails.application.credentials).to receive(:dig).with(:serveme, anything).and_return("test-api-key")
-      stub_request(:post, "https://direct.na.serveme.tf/api/docker_image_updates").to_raise(Faraday::ConnectionFailed.new("nope"))
-      stub_request(:post, "https://direct.sea.serveme.tf/api/docker_image_updates").to_return(status: 200)
-      stub_request(:post, "https://direct.au.serveme.tf/api/docker_image_updates").to_return(status: 200)
+      stub_request(:post, "https://na.example.org/api/docker_image_updates").to_raise(Faraday::ConnectionFailed.new("nope"))
+      stub_request(:post, "https://sea.example.org/api/docker_image_updates").to_return(status: 200)
+      stub_request(:post, "https://au.example.org/api/docker_image_updates").to_return(status: 200)
 
       worker.perform(build.id)
 
-      expect(WebMock).to have_requested(:post, "https://direct.sea.serveme.tf/api/docker_image_updates")
-      expect(WebMock).to have_requested(:post, "https://direct.au.serveme.tf/api/docker_image_updates")
+      expect(WebMock).to have_requested(:post, "https://sea.example.org/api/docker_image_updates")
+      expect(WebMock).to have_requested(:post, "https://au.example.org/api/docker_image_updates")
     end
 
     it "marks build as failed when broadcast_status raises before lock acquisition" do

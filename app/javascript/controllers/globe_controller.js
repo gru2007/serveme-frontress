@@ -9,10 +9,9 @@ export default class extends Controller {
     this.updateTimer = null
 
     this.allRegions = [
-      { name: 'eu', displayName: 'EU', url: 'https://serveme.tf', color: '#0066ff' },
-      { name: 'na', displayName: 'NA', url: 'https://na.serveme.tf', color: '#ff6600' },
-      { name: 'au', displayName: 'AU', url: 'https://au.serveme.tf', color: '#00ff66' },
-      { name: 'sea', displayName: 'SEA', url: 'https://sea.serveme.tf', color: '#ff00ff' }
+      // One site. Upstream drew a marker per region and linked them together;
+      // there is nowhere else to link to here, so the site links to itself.
+      { name: 'this', displayName: window.location.hostname, url: window.location.origin, color: '#0066ff' }
     ]
 
     this.currentRegion = this.regionValue || 'eu'

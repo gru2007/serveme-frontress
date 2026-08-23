@@ -5,9 +5,11 @@ class BanAppealEnrichmentService
   extend T::Sig
 
   REGIONS = {
-    na: "https://direct.na.serveme.tf",
-    sea: "https://direct.sea.serveme.tf",
-    au: "https://direct.au.serveme.tf"
+    # One site; FRONTRESS_PEER_SITES is the seam if that ever changes.
+    **ENV.fetch("FRONTRESS_PEER_SITES", "").split(",").map(&:strip).reject(&:empty?).to_h { |pair|
+      key, url = pair.split("=", 2)
+      [ key.to_sym, url ]
+    }
   }.freeze
 
   sig { params(discord_uid: T.untyped).void }

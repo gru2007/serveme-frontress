@@ -6,7 +6,7 @@
 .form-inputs
   = f.association :location, label_method: :name, value_method: :id
   = f.input :city
-  = f.input :hostname, placeholder: "de1.serveme.tf"
+  = f.input :hostname, placeholder: "gs1.#{SITE_HOST}"
   = f.input :provider, collection: [["Manual (provide IP)", ""], ["Hetzner Cloud", "hetzner"], ["Vultr", "vultr"]], label: "Provider", include_blank: false, input_html: { id: "docker_host_provider", data: { hetzner_locations: hetzner_locations.to_json, vultr_locations: vultr_locations.to_json } }
   = f.input :provider_location, label: "Provider Location", include_blank: "N/A", collection: f.object.hetzner? ? hetzner_locations : (f.object.provider == "vultr" ? vultr_locations : []), input_html: { id: "docker_host_provider_location" }
   = f.input :ip, label: "IP Address", placeholder: "1.2.3.4", hint: "Leave blank for cloud providers (assigned automatically)"

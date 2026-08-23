@@ -43,7 +43,9 @@ class DockerHost < ActiveRecord::Base
 
   sig { returns(T::Boolean) }
   def serveme_hostname?
-    hostname.to_s.end_with?(".serveme.tf")
+    # Hostnames under this site's own domain are the ones whose DNS this
+    # deployment can manage itself.
+    hostname.to_s.end_with?(".#{SITE_HOST}")
   end
 
   sig { returns(Integer) }

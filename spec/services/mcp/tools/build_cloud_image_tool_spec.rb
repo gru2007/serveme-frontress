@@ -28,9 +28,9 @@ RSpec.describe Mcp::Tools::BuildCloudImageTool do
     let(:admin_user) { create(:user, :admin) }
     let(:tool) { described_class.new(admin_user) }
 
-    context "on EU region" do
+    context "where images are published" do
       before do
-        stub_const("SITE_HOST", "serveme.tf")
+        stub_const("ENV", ENV.to_h.merge("FRONTRESS_BUILD_IMAGE" => "1"))
       end
 
       it "creates a CloudImageBuild record and enqueues the worker by id" do
@@ -68,15 +68,15 @@ RSpec.describe Mcp::Tools::BuildCloudImageTool do
       end
     end
 
-    context "on non-EU region" do
+    context "where images are not published" do
       before do
-        stub_const("SITE_HOST", "na.serveme.tf")
+        stub_const("ENV", ENV.to_h.merge("FRONTRESS_BUILD_IMAGE" => nil))
       end
 
       it "returns an error" do
         result = tool.execute({})
 
-        expect(result[:error]).to include("EU region")
+        expect(result[:error]).to include("builds images")
       end
     end
   end

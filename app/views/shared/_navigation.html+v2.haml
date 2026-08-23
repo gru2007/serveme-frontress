@@ -1,22 +1,8 @@
 %nav{class: "relative bg-[#111317] border-b border-white/10", data: { controller: "navbar" }}
   %div{class: "mx-auto max-w-[1280px] px-[26px] flex items-center gap-4 h-[60px]"}
-    .dropdown{class: "relative"}
-      %a{href: "#", data: { "bs-toggle" => "dropdown" }, class: "font-display font-extrabold text-ink tracking-tight inline-flex items-center gap-1.5", title: "Switch region"}
-        = SITE_HOST
-        %span{class: "text-faint font-normal"} ▾
-      .dropdown-menu
-        = link_to "https://serveme.tf", class: "dropdown-item" do
-          %span{class: ["flags", "flags-eu"]}
-          serveme.tf (Europe)
-        = link_to "https://au.serveme.tf", class: "dropdown-item" do
-          %span{class: ["flags", "flags-au"]}
-          au.serveme.tf (Australia)
-        = link_to "https://na.serveme.tf", class: "dropdown-item" do
-          %span{class: ["flags", "flags-us"]}
-          na.serveme.tf (North-America)
-        = link_to "https://sea.serveme.tf", class: "dropdown-item" do
-          %span{class: ["flags", "flags-sg"]}
-          sea.serveme.tf (Asia)
+    -# One site: the brand is the site, and there is no region to switch to.
+    = link_to root_path, class: "font-display font-extrabold text-ink tracking-tight inline-flex items-center gap-1.5" do
+      = SITE_HOST
 
     %button{type: "button", data: { action: "navbar#toggle" }, "aria-label": "Toggle navigation", class: "md:hidden ml-auto text-muted hover:text-ink"}
       %span{class: "text-xl"} ☰
@@ -56,8 +42,9 @@
             = link_to "Credits", credits_path, class: "dropdown-item"
             = link_to "Privacy", privacy_path, class: "dropdown-item"
             .dropdown-divider
-            = link_to "Discord", "https://discord.gg/0s38RdItLiCmARMm", target: "_blank", class: "dropdown-item"
-            = link_to "GitHub", "https://github.com/Arie/serveme", target: "_blank", class: "dropdown-item"
+            - if Frontress::DISCORD_URL.present?
+              = link_to "Discord", Frontress::DISCORD_URL, target: "_blank", class: "dropdown-item"
+            = link_to "GitHub", Frontress::SOURCE_URL, target: "_blank", class: "dropdown-item"
 
         - if current_user&.donator?
           .dropdown{class: "relative"}
@@ -88,8 +75,8 @@
               - if current_user.admin?
                 = link_to "Launch Cloud Server", new_cloud_reservation_path, class: "dropdown-item"
                 = link_to "Docker Hosts", admin_docker_hosts_path, class: "dropdown-item"
-                - if SITE_HOST == "serveme.tf"
-                  = link_to "Cloud Image", admin_cloud_image_builds_path, class: "dropdown-item"
+                - if ENV["FRONTRESS_BUILD_IMAGE"].present?
+                  = link_to "Server Image", admin_cloud_image_builds_path, class: "dropdown-item"
                 = link_to "Server Notifications", admin_server_notifications_path, class: "dropdown-item"
                 = link_to "Site Settings", edit_admin_site_settings_path, class: "dropdown-item"
               .dropdown-divider
@@ -110,9 +97,10 @@
                 = link_to "Manage Maps", admin_maps_path, class: "dropdown-item"
 
       %div{class: "flex items-center gap-3 md:ml-auto text-sm mt-2 md:mt-0"}
-        = link_to "https://discord.gg/0s38RdItLiCmARMm", target: "_blank", title: "serveme.tf on discord", class: "text-info hover:brightness-110" do
-          = image_tag "discord.png", alt: "Discord", class: "h-5 w-5 inline"
-        = link_to "https://github.com/Arie/serveme", target: "_blank", title: "serveme.tf source code", class: "text-muted hover:text-ink" do
+        - if Frontress::DISCORD_URL.present?
+          = link_to Frontress::DISCORD_URL, target: "_blank", title: "#{SITE_HOST} on discord", class: "text-info hover:brightness-110" do
+            = image_tag "discord.png", alt: "Discord", class: "h-5 w-5 inline"
+        = link_to Frontress::SOURCE_URL, target: "_blank", title: "#{SITE_HOST} source code", class: "text-muted hover:text-ink" do
           = image_tag "octocat.png", alt: "GitHub", class: "h-5 w-5 inline"
         - if current_user
           = link_to settings_path, class: "v2-badge inline-flex items-center gap-1" do

@@ -30,14 +30,8 @@ module CloudProvider
     !!user&.can_use_cloud_servers?
   end
 
-  SITE_REGION = T.let(
-    case SITE_HOST
-    when "na.serveme.tf" then "NA"
-    when "au.serveme.tf" then "AU"
-    when "sea.serveme.tf" then "SEA"
-    else "EU"
-    end.freeze, String
-  )
+  # Which region's cloud locations this site offers. One site, one region.
+  SITE_REGION = T.let(Frontress::REGION, String)
 
   # Returns cloud locations grouped by country for use in select dropdowns.
   # Each entry is [label, value] where value is "provider:code".

@@ -33,7 +33,7 @@ log on
 sv_logflush 0
 sv_logbans 1
 sv_logecho 1
-logaddress_add <%= "direct.#{SITE_HOST}:40001" %>
+logaddress_add <%= Frontress.log_address %>
 
 sv_rcon_whitelist_address "<%= whitelist_ip %>"
 sv_rcon_minfailuretime 1

@@ -4,7 +4,7 @@
   %h1{class: "v2-page-title"} FAQ
 
 %p{class: "text-lg text-ink mb-6"}
-  Hey there, we hope you're enjoying serveme.tf. Here we'll try to answer your questions :)
+  Hey there, we hope you're enjoying #{SITE_HOST}. Here we'll try to answer your questions :)
 
 %h2{class: "font-display text-xl font-bold text-ink mt-8 mb-3"} Getting Started
 
@@ -229,10 +229,10 @@
 
 %div{class: "flex flex-col gap-3"}
   %div{class: "v2-card"}
-    %div{class: "font-semibold text-ink mb-2"} Q: I want to use serveme.tf in one of my own projects, is there an API?
+    %div{class: "font-semibold text-ink mb-2"} Q: I want to use #{SITE_HOST} in one of my own projects, is there an API?
     %em{class: "text-muted"}
       A: Yep! You can read how to use it
-      = link_to("here.", "https://github.com/Arie/serveme/blob/master/README.md")
+      = link_to("here.", "#{Frontress::SOURCE_URL}/blob/master/README.md")
       Contact me for an API key, or get premium and look in your settings.
 
   %div{class: "v2-card"}
@@ -244,4 +244,4 @@
     %div{class: "font-semibold text-ink mb-2"} Q: I can't find my question in this FAQ
     %em{class: "text-muted"}
       A: Talk to us on
-      = link_to "our Discord", 'https://discord.gg/0s38RdItLiCmARMm', :target => '_blank'
+      = community_discord_link

@@ -46,18 +46,11 @@ class StripeWebhooksController < ApplicationController
     payload = request.raw_post
     sig_header = request.env["HTTP_STRIPE_SIGNATURE"]
 
-    region_secret = case SITE_HOST
-    when "na.serveme.tf"
-                      :na_wh_secret
-    when "sea.serveme.tf"
-                      :sea_wh_secret
-    when "au.serveme.tf"
-                      :au_wh_secret
-    else
-                      :eu_wh_secret # Fallback to EU
-    end
-
-    endpoint_secret = Rails.application.credentials.dig(:stripe, region_secret)
+    # One site, one webhook secret. The regional keys upstream uses are still
+    # read as a fallback so an existing credentials file keeps working.
+    endpoint_secret = ENV["STRIPE_WEBHOOK_SECRET"].presence ||
+      Rails.application.credentials.dig(:stripe, :wh_secret) ||
+      Rails.application.credentials.dig(:stripe, :eu_wh_secret)
 
     begin
       Stripe::Webhook.construct_event(

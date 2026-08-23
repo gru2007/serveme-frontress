@@ -1,18 +1,12 @@
 ---
 openapi: 3.0.1
 info:
-  title: serveme.tf API
+  title: Team Frontress API
   description: |
-    API for Team Fortress 2 server reservations
+    API for Team Frontress server reservations
 
     ## Authentication
     Most endpoints require authentication via API key. Users can find their API key in their settings page after creating an account.
-
-    **Important**: API keys are unique per region. You must use the API key from the same region as the server you're calling:
-    - EU server requires EU API key from https://serveme.tf
-    - NA server requires NA API key from https://na.serveme.tf
-    - AU server requires AU API key from https://au.serveme.tf
-    - SEA server requires SEA API key from https://sea.serveme.tf
 
     ## Permission Levels
     - **Public**: No authentication required
@@ -22,7 +16,7 @@ info:
     - **Trusted API**: Admin or Trusted API group membership required
 
     ## Groups
-    The serveme.tf platform uses a group-based permission system:
+    This site uses a group-based permission system:
     - **Admins**: Full access to all features and admin endpoints
     - **League Admins**: Access to league-related features and searches
     - **Trusted API**: Enhanced API access for automated systems - can manage reservations for any user by providing `steam_uid` parameter
@@ -30,17 +24,11 @@ info:
     - **Streamers**: Special streaming-related features
   version: v1
   contact:
-    name: serveme.tf
-    url: https://serveme.tf
+    name: Team Frontress
+    url: https://tf2-serve.r-artemev.ru
 servers:
-- url: https://serveme.tf
-  description: Production server (EU)
-- url: https://na.serveme.tf
-  description: Production server (NA)
-- url: https://au.serveme.tf
-  description: Production server (AU)
-- url: https://sea.serveme.tf
-  description: Production server (SEA)
+- url: https://tf2-serve.r-artemev.ru
+  description: This site
 - url: http://localhost:3000
   description: Development server
 components:
@@ -188,7 +176,7 @@ paths:
       summary: Resolve a connect string to SDR (Steam Datagram Relay) details
       tags:
       - SDR
-      description: Resolves a TF2 connect string (or bare ip:port) for a serveme.tf
+      description: Resolves a connect string (or bare ip:port) for one of this site's
         server to its current Steam Datagram Relay connect details. Mirrors the /sdr
         web page.
       parameters:

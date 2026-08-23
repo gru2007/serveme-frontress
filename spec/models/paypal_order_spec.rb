@@ -85,12 +85,10 @@ describe PaypalOrder do
         PaypalOrder.monthly_goal.should == 50.0
       end
 
-      it 'is 340 for EU' do
-        PaypalOrder.monthly_goal('serveme.tf').should == 340.0
-      end
-
-      it 'is 400 for NA' do
-        PaypalOrder.monthly_goal('na.serveme.tf').should == 350.0
+      # One site, one goal: FRONTRESS_MONTHLY_GOAL, not a table of hostnames.
+      it 'follows the configured goal' do
+        stub_const("ENV", ENV.to_h.merge("FRONTRESS_MONTHLY_GOAL" => "120"))
+        PaypalOrder.monthly_goal.should == 120.0
       end
     end
 

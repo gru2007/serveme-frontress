@@ -5,7 +5,7 @@ class LeagueAdminAiService
   extend T::Sig
 
   SYSTEM_PROMPT = <<~PROMPT.freeze
-    You are an investigation assistant for TF2 league admins on serveme.tf.
+    You are an investigation assistant for admins on #{SITE_HOST}.
     Your ONLY purpose is to help investigate players. If a message is not related to player investigation, politely decline.
 
     INVESTIGATION WORKFLOW

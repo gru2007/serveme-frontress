@@ -12,7 +12,7 @@ describe DockerHost do
     end
 
     it 'requires ip for non-provider hosts' do
-      host = DockerHost.new(city: 'Amsterdam', hostname: 'test.serveme.tf', location: create(:location))
+      host = DockerHost.new(city: 'Amsterdam', hostname: 'test.example.org', location: create(:location))
       expect(host).not_to be_valid
       expect(host.errors[:ip]).to be_present
     end
@@ -47,8 +47,8 @@ describe DockerHost do
     end
 
     it 'requires unique hostname' do
-      create(:docker_host, hostname: 'de1.serveme.tf')
-      host = build(:docker_host, hostname: 'de1.serveme.tf', ip: '10.0.0.2')
+      create(:docker_host, hostname: 'gs1.example.org')
+      host = build(:docker_host, hostname: 'gs1.example.org', ip: '10.0.0.2')
       expect(host).not_to be_valid
       expect(host.errors[:hostname]).to be_present
     end
@@ -59,18 +59,15 @@ describe DockerHost do
     end
   end
 
+  # "Is this host under our own domain?" -- which is what decides whether this
+  # site can create the DNS record for it itself.
   describe '#serveme_hostname?' do
-    it 'returns true for serveme.tf hostnames' do
-      host = build(:docker_host, hostname: 'de1.serveme.tf')
+    it 'returns true for hostnames under this site' do
+      host = build(:docker_host, hostname: "gs1.#{SITE_HOST}")
       expect(host.serveme_hostname?).to be true
     end
 
-    it 'returns true for regional serveme.tf hostnames' do
-      host = build(:docker_host, hostname: 'us1.na.serveme.tf')
-      expect(host.serveme_hostname?).to be true
-    end
-
-    it 'returns false for other hostnames' do
+    it 'returns false for hostnames somewhere else' do
       host = build(:docker_host, hostname: 'server1.example.com')
       expect(host.serveme_hostname?).to be false
     end
@@ -102,10 +99,10 @@ describe DockerHost do
     it 'sorts by country, then city, then hostname' do
       nl = create(:location, name: 'Netherlands')
       us = create(:location, name: 'United States')
-      chi2 = create(:docker_host, location: us, city: 'Chicago', hostname: 'chi2.serveme.tf', ip: '10.0.0.2')
-      ams = create(:docker_host, location: nl, city: 'Amsterdam', hostname: 'ams1.serveme.tf', ip: '10.0.0.3')
-      chi1 = create(:docker_host, location: us, city: 'Chicago', hostname: 'chi1.serveme.tf', ip: '10.0.0.4')
-      dal = create(:docker_host, location: us, city: 'Dallas', hostname: 'dal.serveme.tf', ip: '10.0.0.5')
+      chi2 = create(:docker_host, location: us, city: 'Chicago', hostname: 'chi2.example.org', ip: '10.0.0.2')
+      ams = create(:docker_host, location: nl, city: 'Amsterdam', hostname: 'ams1.example.org', ip: '10.0.0.3')
+      chi1 = create(:docker_host, location: us, city: 'Chicago', hostname: 'chi1.example.org', ip: '10.0.0.4')
+      dal = create(:docker_host, location: us, city: 'Dallas', hostname: 'dal.example.org', ip: '10.0.0.5')
 
       expect(described_class.ordered).to eq([ ams, chi1, chi2, dal ])
     end
@@ -124,8 +121,8 @@ describe DockerHost do
 
     it 'returns hosts in country, city, hostname order' do
       us = create(:location, name: 'United States')
-      chi = create(:docker_host, location: us, city: 'Chicago', hostname: 'chi1.serveme.tf', ip: '10.0.0.2')
-      ams = create(:docker_host, city: 'Amsterdam', hostname: 'ams1.serveme.tf', ip: '10.0.0.3')
+      chi = create(:docker_host, location: us, city: 'Chicago', hostname: 'chi1.example.org', ip: '10.0.0.2')
+      ams = create(:docker_host, city: 'Amsterdam', hostname: 'ams1.example.org', ip: '10.0.0.3')
 
       expect(described_class.available_during(*window)).to eq([ ams, chi ])
     end

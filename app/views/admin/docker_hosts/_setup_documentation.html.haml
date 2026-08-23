@@ -30,9 +30,9 @@
           %dt.col-sm-3 Hostname
           %dd.col-sm-9
             FQDN you'll point DNS at, e.g.
-            %code de1.serveme.tf
+            %code= "gs1.#{SITE_HOST}"
             \.
-            %code .serveme.tf
+            %code= ".#{SITE_HOST}"
             hostnames get DNS auto-managed via Cloudflare; anything else expects you to set the A record yourself.
           %dt.col-sm-3 IP Address
           %dd.col-sm-9 Leave blank for Hetzner/Vultr (assigned during Create VM). Fill in for bare-metal.
@@ -61,7 +61,7 @@
         %ol.small.mb-0
           %li
             %strong DNS:
-            for non-<code>.serveme.tf</code> hostnames, create the A record at your DNS provider pointing at the host's IP. Wait for it to resolve before clicking the DNS step.
+            for hostnames outside this site's own domain, create the A record at your DNS provider pointing at the host's IP. Wait for it to resolve before clicking the DNS step.
           %li
             %strong SSH key access:
             this region's Rails deploy user (<code>tf2@&lt;eu/na/au/sea&gt;</code>) needs to be able to SSH to the host's SSH User. The
@@ -103,7 +103,7 @@
           for EU,
           %code chi1
           /
-          %code direct.na.serveme.tf
+          %code= Frontress.direct_host
           for NA) keep their existing nginx in charge of port 80/443 and the
           %code= "/ping"
           reverse-proxy. On these hosts:
@@ -144,7 +144,7 @@
           %dt.col-sm-3 Create VM
           %dd.col-sm-9 (Provider-managed only.) Calls Hetzner/Vultr API to provision a server, polls until it's running, stores the assigned IP.
           %dt.col-sm-3 DNS
-          %dd.col-sm-9 For <code>.serveme.tf</code>: creates/updates the A record via Cloudflare API. For everything else: <code>Resolv.getaddress</code> verifies the hostname points at the recorded IP.
+          %dd.col-sm-9 For hostnames under this site's own domain: creates/updates the A record via Cloudflare API. For everything else: <code>Resolv.getaddress</code> verifies the hostname points at the recorded IP.
           %dt.col-sm-3 SSH
           %dd.col-sm-9 Connects, runs <code>hostname</code>, confirms the connection works.
           %dt.col-sm-3 Provision

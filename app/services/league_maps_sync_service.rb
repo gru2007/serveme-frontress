@@ -8,7 +8,10 @@ require "timeout"
 class LeagueMapsSyncService
   extend T::Sig
 
-  GITHUB_RAW_URL = "https://raw.githubusercontent.com/Arie/serveme/refs/heads/master/config/league_maps.yml"
+  # Upstream syncs its map groups from the serveme repository. Ours are our
+  # own, so this points at nothing by default and the worker is not scheduled;
+  # set FRONTRESS_MAP_GROUPS_URL to sync from somewhere you control.
+  GITHUB_RAW_URL = ENV.fetch("FRONTRESS_MAP_GROUPS_URL", "").freeze
   CACHE_KEY = "league_maps_config"
   CACHE_EXPIRY = 24.hours
 
@@ -45,6 +48,8 @@ class LeagueMapsSyncService
 
   sig { returns(T::Hash[String, T.untyped]) }
   def fetch_from_github
+    return {} if GITHUB_RAW_URL.blank?
+
     uri = URI(GITHUB_RAW_URL)
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true if uri.scheme == "https"

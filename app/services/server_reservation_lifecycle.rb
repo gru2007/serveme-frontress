@@ -41,7 +41,7 @@ class ServerReservationLifecycle
       reservation.status_update("Restarted server, waiting to boot")
     else
       reservation.status_update("Attempting fast start")
-      if @server.rcon_exec("removeip 1; removeip 1; removeip 1; sv_logsecret #{reservation.logsecret}; logaddress_add direct.#{SITE_HOST}:40001; servercfgfile reservation.cfg", allow_blocked: true)
+      if @server.rcon_exec("removeip 1; removeip 1; removeip 1; sv_logsecret #{reservation.logsecret}; logaddress_add #{Frontress.log_address}; servercfgfile reservation.cfg", allow_blocked: true)
         first_map = reservation.first_map.presence || Frontress::DEFAULT_MAP
         @server.rcon_exec("changelevel #{first_map}; exec reservation.cfg")
         reservation.status_update("Fast start attempted, waiting to boot")
@@ -102,7 +102,7 @@ class ServerReservationLifecycle
 
   sig { params(reservation: Reservation).void }
   def upload_map_to_server(reservation)
-    tempfile = Down.download("https://fastdl.serveme.tf/maps/#{reservation.first_map}.bsp")
+    tempfile = Down.download("#{Frontress::FASTDL_URL.chomp('/')}/maps/#{reservation.first_map}.bsp")
     @server.copy_to_server([ tempfile.path ], "#{@server.tf_dir}/maps/#{reservation.first_map}.bsp")
     reservation.status_update("Uploaded map #{reservation.first_map} to server")
   end

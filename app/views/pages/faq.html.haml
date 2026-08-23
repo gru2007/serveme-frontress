@@ -5,7 +5,7 @@
     %h2 FAQ
 
     .card-body.lead.text-white
-      Hey there, we hope you're enjoying serveme.tf. Here we'll try to answer your questions :)
+      Hey there, we hope you're enjoying #{SITE_HOST}. Here we'll try to answer your questions :)
 
     %h4.mt-4.mb-3 Getting Started
 
@@ -252,11 +252,11 @@
 
     .card.bg-faded
       .card-header.text-white
-        Q: I want to use serveme.tf in one of my own projects, is there an API?
+        Q: I want to use #{SITE_HOST} in one of my own projects, is there an API?
       .card-body
         %em
           A: Yep! You can read how to use it
-          = link_to("here.", "https://github.com/Arie/serveme/blob/master/README.md")
+          = link_to("here.", "#{Frontress::SOURCE_URL}/blob/master/README.md")
           Contact me for an API key, or get premium and look in your settings.
 
     .card.bg-faded
@@ -272,4 +272,4 @@
       .card-body
         %em
           A: Talk to us on
-          = link_to "our Discord", 'https://discord.gg/0s38RdItLiCmARMm', :target => '_blank'
+          = community_discord_link

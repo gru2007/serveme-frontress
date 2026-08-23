@@ -18,7 +18,7 @@ module Mcp
         "rebuilds with current plugins/configs, and pushes to Docker Hub. " \
         "Plugins and league configs are always refreshed; pass no_cache=true to also rebuild " \
         "SourceMod/MetaMod from scratch (the TF2 game files stay cached). " \
-        "Only runs on the EU region (serveme.tf)."
+        "Only runs on the deployment that builds images (FRONTRESS_BUILD_IMAGE)."
       end
 
       sig { override.returns(T::Hash[Symbol, T.untyped]) }
@@ -41,7 +41,7 @@ module Mcp
 
       sig { override.params(params: T::Hash[Symbol, T.untyped]).returns(T::Hash[Symbol, T.untyped]) }
       def execute(params)
-        return { error: "Only available on the EU region (serveme.tf)" } unless SITE_HOST == "serveme.tf"
+        return { error: "Only available on the deployment that builds images" } if ENV["FRONTRESS_BUILD_IMAGE"].blank?
 
         version = Server.latest_version
         return { error: "Could not fetch latest TF2 version from Steam API" } unless version

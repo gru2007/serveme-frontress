@@ -45,7 +45,8 @@ x-app: &app
     STEAM_API_KEY: "${STEAM_API_KEY:?set STEAM_API_KEY in .env - get one at https //steamcommunity.com/dev/apikey}"
     RAILS_MASTER_KEY: ${RAILS_MASTER_KEY:-}
     SITE_URL: "${SITE_URL:?set SITE_URL in .env - the address users type to reach this site}"
-    SITE_HOST: ${SITE_HOST:-localhost}
+    # Empty is fine: the app derives the host from SITE_URL.
+    SITE_HOST: ${SITE_HOST:-}
     MAPS_DIR: ${MAPS_DIR:-/rails/tmp/maps}
     SENTRY_DSN: ${SENTRY_DSN:-}
     # Game servers. They are containers, started on this machine's docker
@@ -57,6 +58,20 @@ x-app: &app
     FRONTRESS_FASTDL_URL: ${FRONTRESS_FASTDL_URL:-}
     FRONTRESS_DEFAULT_MAP: ${FRONTRESS_DEFAULT_MAP:-koth_product_final}
     FRONTRESS_GSLT: ${FRONTRESS_GSLT:-}
+    # This site's identity: what it calls itself, where servers reach it, and
+    # which links belong to this community rather than to serveme.tf.
+    FRONTRESS_DIRECT_HOST: ${FRONTRESS_DIRECT_HOST:-}
+    FRONTRESS_LOG_ADDRESS: ${FRONTRESS_LOG_ADDRESS:-}
+    SERVEME_LOG_PORT: ${SERVEME_LOG_PORT:-40001}
+    FRONTRESS_DISCORD_URL: ${FRONTRESS_DISCORD_URL:-}
+    FRONTRESS_DISCORD_COMMAND: ${FRONTRESS_DISCORD_COMMAND:-frontress}
+    FRONTRESS_SOURCE_URL: ${FRONTRESS_SOURCE_URL:-https://github.com/gru2007/serveme-frontress}
+    FRONTRESS_REGION: ${FRONTRESS_REGION:-EU}
+    FRONTRESS_TIME_ZONE: ${FRONTRESS_TIME_ZONE:-Europe/Amsterdam}
+    FRONTRESS_LEAGUE: ${FRONTRESS_LEAGUE:-}
+    FRONTRESS_PEER_SITES: ${FRONTRESS_PEER_SITES:-}
+    FRONTRESS_CLEANUP_AGE_DAYS: ${FRONTRESS_CLEANUP_AGE_DAYS:-30}
+    FRONTRESS_MONTHLY_GOAL: ${FRONTRESS_MONTHLY_GOAL:-50}
     FRONTRESS_MAPS: ${FRONTRESS_MAPS:-}
     ACTIVE_STORAGE_SERVICE: ${ACTIVE_STORAGE_SERVICE:-}
     ZIPFILE_STORAGE_SERVICE: ${ZIPFILE_STORAGE_SERVICE:-}

@@ -1,13 +1,11 @@
 # typed: true
 # frozen_string_literal: true
 
-if SITE_HOST == "sea.serveme.tf"
-  Stripe.api_key = Rails.application.credentials.dig(:stripe, :sea_api_key)
-  STRIPE_PUBLISHABLE_KEY = Rails.application.credentials.dig(:stripe, :sea_publishable_key)
-else
-  Stripe.api_key = Rails.application.credentials.dig(:stripe, :api_key)
-  STRIPE_PUBLISHABLE_KEY = Rails.application.credentials.dig(:stripe, :publishable_key)
-end
+# One site, one Stripe account. Environment first, so a deployment without
+# Rails credentials can still take payments.
+Stripe.api_key = ENV["STRIPE_API_KEY"].presence || Rails.application.credentials.dig(:stripe, :api_key)
+STRIPE_PUBLISHABLE_KEY = ENV["STRIPE_PUBLISHABLE_KEY"].presence ||
+  Rails.application.credentials.dig(:stripe, :publishable_key)
 
 # Update to latest API version that supports automatic_payment_methods
 Stripe.api_version = "2023-10-16"

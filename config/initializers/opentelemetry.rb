@@ -1,7 +1,8 @@
 # typed: strict
 # frozen_string_literal: true
 
-if [ "serveme.tf", "na.serveme.tf", "sea.serveme.tf", "au.serveme.tf" ].include?(SITE_HOST)
+# Tracing is opt-in: set OTEL_EXPORTER_OTLP_ENDPOINT (or OTEL_TRACES) to a collector.
+if ENV["OTEL_EXPORTER_OTLP_ENDPOINT"].present? || ENV["OTEL_TRACES"].present?
   # `||=` so the deploy.yml env (host.docker.internal:4318 for Kamal) wins.
   ENV["OTEL_EXPORTER"] ||= "otlp"
   ENV["OTEL_SERVICE_NAME"] ||= SITE_HOST

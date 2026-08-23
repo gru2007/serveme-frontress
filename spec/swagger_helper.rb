@@ -3,6 +3,11 @@
 
 require 'spec_helper'
 
+# The generated swagger.yaml is committed, so it must not change depending on
+# whether SITE_URL happened to be set when the suite ran. The site's public
+# address is named here once.
+PUBLIC_SITE_URL = ENV["SITE_URL"].presence || "https://tf2-serve.r-artemev.ru"
+
 RSpec.configure do |config|
   # Specify a root folder where Swagger JSON files are generated
   # NOTE: If you're using the rswag-api to serve API descriptions, you'll need
@@ -19,18 +24,13 @@ RSpec.configure do |config|
     'v1/swagger.yaml' => {
       openapi: '3.0.1',
       info: {
-        title: 'serveme.tf API',
+        title: 'Team Frontress API',
         description: <<~DESC,
-          API for Team Fortress 2 server reservations
+          API for Team Frontress server reservations
 
           ## Authentication
           Most endpoints require authentication via API key. Users can find their API key in their settings page after creating an account.
 
-          **Important**: API keys are unique per region. You must use the API key from the same region as the server you're calling:
-          - EU server requires EU API key from https://serveme.tf
-          - NA server requires NA API key from https://na.serveme.tf
-          - AU server requires AU API key from https://au.serveme.tf
-          - SEA server requires SEA API key from https://sea.serveme.tf
 
           ## Permission Levels
           - **Public**: No authentication required
@@ -40,7 +40,7 @@ RSpec.configure do |config|
           - **Trusted API**: Admin or Trusted API group membership required
 
           ## Groups
-          The serveme.tf platform uses a group-based permission system:
+          This site uses a group-based permission system:
           - **Admins**: Full access to all features and admin endpoints
           - **League Admins**: Access to league-related features and searches
           - **Trusted API**: Enhanced API access for automated systems - can manage reservations for any user by providing `steam_uid` parameter
@@ -49,26 +49,14 @@ RSpec.configure do |config|
         DESC
         version: 'v1',
         contact: {
-          name: 'serveme.tf',
-          url: 'https://serveme.tf'
+          name: 'Team Frontress',
+          url: PUBLIC_SITE_URL
         }
       },
       servers: [
         {
-          url: 'https://serveme.tf',
-          description: 'Production server (EU)'
-        },
-        {
-          url: 'https://na.serveme.tf',
-          description: 'Production server (NA)'
-        },
-        {
-          url: 'https://au.serveme.tf',
-          description: 'Production server (AU)'
-        },
-        {
-          url: 'https://sea.serveme.tf',
-          description: 'Production server (SEA)'
+          url: PUBLIC_SITE_URL,
+          description: 'This site'
         },
         {
           url: 'http://localhost:3000',

@@ -91,7 +91,7 @@ RUN (/usr/games/steamcmd +force_install_dir /home/frontress/hlserver/SteamLinuxR
     # is missing. Dropping them saves several gigabytes per host.
     && rm -f /home/frontress/hlserver/tf2/tf/maps/*.bsp
 
-COPY --from=rcon-build /tmp/rcon/rcon /home/frontress/hlserver/rcon
+COPY --from=rcon-build --chown=frontress:frontress /tmp/rcon/rcon /home/frontress/hlserver/rcon
 
 # ============================================================
 # Stage: final
@@ -119,7 +119,9 @@ RUN echo "Frontress build: ${FRONTRESS_VERSION} (cache bust ${CACHEBUST})" \
                 /home/frontress/hlserver/tc2_linux64 \
                 /home/frontress/hlserver/steamcmd_update.sh
 
-COPY --from=agent-build /out/greyline-agent /home/frontress/hlserver/greyline-agent
+# --chown, because everything after the base stage runs as frontress and a
+# root-owned file here is one this stage cannot even chmod.
+COPY --from=agent-build --chown=frontress:frontress /out/greyline-agent /home/frontress/hlserver/greyline-agent
 
 # The rulesets a matchmade server execs, and anything else that has to be on
 # every server. They come from the game repository (game/tc2/cfg) and are

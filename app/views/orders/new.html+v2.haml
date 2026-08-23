@@ -4,7 +4,6 @@
 
 - na_user = eu_system? && current_user&.from_na?
 %div{data: na_user ? { controller: "na-confirm" } : {}}
-  = render 'shared/point_to_na', blink: true, confirm: na_user
 
   .stripe-result.hidden
     %div{class: "v2-card max-w-2xl my-4"}
@@ -44,11 +43,10 @@
             %li Fund additional gameservers
 
         %p
-          Premium status is site-specific, so you either pay for serveme.tf, na.serveme.tf, sea.serveme.tf or au.serveme.tf, make sure you're on the right site before paying.
+          Premium status applies to #{SITE_HOST}.
 
         %p
           Get
-          = link_to('au.serveme.tf premium by subscribing to the ozfortress Patreon.', 'https://patreon.com/ozfortress')
 
         %p
           If you don't receive your premium within 24 hours, please reach out to
@@ -75,17 +73,12 @@
               %li Fund additional gameservers
 
           %p
-            Premium status is site-specific, so you either pay for serveme.tf, na.serveme.tf, sea.serveme.tf or au.serveme.tf, make sure you're on the right site before paying.
+            Premium status applies to #{SITE_HOST}.
 
           %p
-            You can also
-            - if sea_system?
-              = link_to('send the tradebot a trade offer.', 'https://steamcommunity.com/tradeoffer/new/?partner=328658734&token=3vDIZUwa')
-
-              The current rate is 2 keys per month, but you can also send some items just to say thanks.
-
-            - else
-              = link_to('send me a TF2 trade offer.', 'https://steamcommunity.com/tradeoffer/new/?partner=231702&token=POpKIGaL')
+            - if Frontress::TRADE_URL.present?
+              You can also
+              = link_to('send a trade offer.', Frontress::TRADE_URL)
 
               The current rate is 2 keys per month, but you can also send some items just to say thanks.
 

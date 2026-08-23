@@ -42,9 +42,11 @@ module Admin
 
     private
 
+    # Only the deployment that owns the game server image builds it; everywhere
+    # else it comes from the registry.
     def require_eu_region
-      return if SITE_HOST == "serveme.tf"
-      redirect_to root_path, alert: "Cloud image builds are only available on the EU region."
+      return if ENV["FRONTRESS_BUILD_IMAGE"].present?
+      redirect_to root_path, alert: "Server image builds are only available on the deployment that publishes the image."
     end
   end
 end

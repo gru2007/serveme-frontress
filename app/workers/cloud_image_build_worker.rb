@@ -176,12 +176,7 @@ class CloudImageBuildWorker
   end
 
   def notify_other_regions(digest)
-    current_region = case SITE_HOST
-    when "serveme.tf" then :eu
-    when "na.serveme.tf" then :na
-    when "sea.serveme.tf" then :sea
-    when "au.serveme.tf" then :au
-    end
+    current_region = Frontress::REGION.downcase.to_sym
 
     IpLookupSyncWorker::REGIONS.each do |region_key, base_url|
       next if region_key == current_region

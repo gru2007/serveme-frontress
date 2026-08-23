@@ -47,9 +47,10 @@
           %td{colspan: 3}
             %span.text-muted 0
         %td
-          = link_to("https://fastdl.serveme.tf/#{bucket_object[:key]}", class: "btn btn-sm btn-primary", title: "#{bucket_object[:size]} bytes") do
-            = bucket_object[:size_formatted]
-            %i.fa.fa-download
+          - if fastdl_url("#{bucket_object[:key]}")
+            = link_to(fastdl_url("#{bucket_object[:key]}"), class: "btn btn-sm btn-primary", title: "#{bucket_object[:size]} bytes") do
+              = bucket_object[:size_formatted]
+              %i.fa.fa-download
           = link_to admin_map_path(bucket_object[:map_name]), method: :delete, class: "btn btn-sm btn-danger", title: "Delete", data: { confirm: "Are you sure you want to delete #{bucket_object[:map_name]}?" } do
             %i.fa.fa-trash
 

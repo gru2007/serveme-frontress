@@ -14,10 +14,10 @@ describe CloudServer do
 
   describe '#host_hostname' do
     it 'returns the docker host hostname for remote_docker servers' do
-      docker_host = create(:docker_host, hostname: 'chi3.serveme.tf')
+      docker_host = create(:docker_host, hostname: 'gs3.example.org')
       server = create(:cloud_server, cloud_provider: 'remote_docker', cloud_location: docker_host.id.to_s, ip: '1.2.3.4')
 
-      expect(server.host_hostname).to eq('chi3.serveme.tf')
+      expect(server.host_hostname).to eq('gs3.example.org')
     end
 
     it 'falls back to the ip for non-docker cloud servers' do
@@ -35,14 +35,14 @@ describe CloudServer do
 
   describe '#public_ip' do
     it 'publishes the docker host hostname instead of the raw ip' do
-      docker_host = create(:docker_host, hostname: 'ozfortress.serveme.tf')
+      docker_host = create(:docker_host, hostname: 'gs9.example.org')
       server = create(:cloud_server, cloud_provider: 'remote_docker', cloud_location: docker_host.id.to_s, ip: '51.161.198.146')
 
-      expect(server.public_ip).to eq('ozfortress.serveme.tf')
+      expect(server.public_ip).to eq('gs9.example.org')
     end
 
     it 'leaves the ip column numeric so resolved_ip still gets an address' do
-      docker_host = create(:docker_host, hostname: 'ozfortress.serveme.tf')
+      docker_host = create(:docker_host, hostname: 'gs9.example.org')
       server = create(:cloud_server, cloud_provider: 'remote_docker', cloud_location: docker_host.id.to_s, ip: '51.161.198.146')
 
       expect(server.ip).to eq('51.161.198.146')
@@ -55,17 +55,17 @@ describe CloudServer do
     end
 
     it 'publishes the hostname but keeps join urls numeric' do
-      docker_host = create(:docker_host, hostname: 'ozfortress.serveme.tf')
+      docker_host = create(:docker_host, hostname: 'gs9.example.org')
       server = create(:cloud_server, cloud_provider: 'remote_docker', cloud_location: docker_host.id.to_s, ip: '51.161.198.146', port: '27125')
       server.update_column(:resolved_ip, '51.161.198.146')
 
-      expect(server.public_ip).to eq('ozfortress.serveme.tf')
+      expect(server.public_ip).to eq('gs9.example.org')
       expect(server.public_numeric_ip).to eq('51.161.198.146')
       expect(server.server_connect_url('8XS5ezDOkm')).to eq('steam://connect/51.161.198.146:27125/8XS5ezDOkm')
     end
 
     it 'still prefers the SDR address when the server is on SDR' do
-      docker_host = create(:docker_host, hostname: 'ozfortress.serveme.tf')
+      docker_host = create(:docker_host, hostname: 'gs9.example.org')
       server = create(:cloud_server, cloud_provider: 'remote_docker', cloud_location: docker_host.id.to_s,
                                      ip: '51.161.198.146', sdr: true, last_sdr_ip: '169.254.1.59')
 

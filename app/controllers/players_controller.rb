@@ -38,16 +38,7 @@ class PlayersController < ApplicationController
 
   helper_method :current_region
   def current_region
-    case SITE_HOST
-    when "na.serveme.tf", "localhost"
-      "na"
-    when "au.serveme.tf"
-      "au"
-    when "sea.serveme.tf"
-      "sea"
-    else
-      "eu"
-    end
+    Frontress::REGION.downcase
   end
 
   private

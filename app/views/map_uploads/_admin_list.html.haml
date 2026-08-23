@@ -19,9 +19,10 @@
       %td{colspan: 3}
         0
     %td
-      = link_to("https://fastdl.serveme.tf/#{bucket_object[:key]}", class: "btn btn-sm btn-primary", title: "#{bucket_object[:size]} bytes") do
-        = number_to_human_size(bucket_object[:size])
-        %i.fa.fa-download
+      - if fastdl_url("#{bucket_object[:key]}")
+        = link_to(fastdl_url("#{bucket_object[:key]}"), class: "btn btn-sm btn-primary", title: "#{bucket_object[:size]} bytes") do
+          = number_to_human_size(bucket_object[:size])
+          %i.fa.fa-download
 
       = link_to(map_upload_path(bucket_object[:map_name]), method: :delete, class: "btn btn-sm btn-danger") do
         Delete

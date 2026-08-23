@@ -1,20 +1,16 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# MCP stdio-to-HTTP bridge for serveme.tf
-# Usage: mcp-client <region> [api_key]
+# MCP stdio-to-HTTP bridge
+# Usage: mcp-client [api_key]   (or set SERVEME_API_KEY)
 # Regions: eu, na, sea, au
 
 require "net/http"
 require "uri"
 require "json"
 
-REGIONS = {
-  "eu" => "https://serveme.tf",
-  "na" => "https://na.serveme.tf",
-  "sea" => "https://sea.serveme.tf",
-  "au" => "https://au.serveme.tf"
-}.freeze
+# One site. SERVEME_URL overrides it for a local or staging instance.
+SITE_URL = ENV.fetch("SERVEME_URL", "https://tf2-serve.r-artemev.ru").freeze
 
 SERVER_INFO = {
   name: "serveme-mcp",
@@ -26,17 +22,16 @@ CAPABILITIES = {
 }.freeze
 
 class McpClient
-  def initialize(region, api_key)
-    @region = region
+  def initialize(api_key)
     @api_key = api_key
-    @base_url = REGIONS[region]
+    @base_url = SITE_URL
     @endpoint = URI("#{@base_url}/api/mcp/execute")
     @tools_cache = nil
   end
 
   def run
     $stdout.sync = true
-    $stderr.puts "MCP client started for #{@region} (#{@base_url})"
+    $stderr.puts "MCP client started for #{@base_url}"
 
     loop do
       line = $stdin.gets
@@ -167,17 +162,11 @@ class McpClient
 end
 
 # Main
-region = ARGV[0] || "eu"
-api_key = ARGV[1] || ENV["SERVEME_API_KEY"]
+api_key = ARGV[0] || ENV["SERVEME_API_KEY"]
 
 unless api_key
   $stderr.puts "Error: API key required. Pass as argument or set SERVEME_API_KEY env var"
   exit 1
 end
 
-unless REGIONS.key?(region)
-  $stderr.puts "Error: Unknown region '#{region}'. Valid: #{REGIONS.keys.join(', ')}"
-  exit 1
-end
-
-McpClient.new(region, api_key).run
+McpClient.new(api_key).run

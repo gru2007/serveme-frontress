@@ -56,16 +56,8 @@ class Order < ActiveRecord::Base
 
   sig { params(site_host: String).returns(Float) }
   def self.monthly_goal(site_host = SITE_HOST)
-    case site_host
-    when "serveme.tf"
-      340.0
-    when "na.serveme.tf"
-      350.0
-    when "sea.serveme.tf"
-      60.0
-    else
-      50.0
-    end
+    _ = site_host
+    Float(ENV.fetch("FRONTRESS_MONTHLY_GOAL", 50.0))
   end
 
   sig { returns(T::Array[T::Array[T.any(Integer, User)]]) }

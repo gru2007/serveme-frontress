@@ -85,19 +85,21 @@ class PlayerAnnouncementService
   def self.build_league_parts(steam_uid)
     parts = []
 
-    if SITE_HOST == "serveme.tf"
+    # Team Fortress league profiles, and only when a community opted into one
+    # (FRONTRESS_LEAGUE). Frontress players are not in ETF2L, RGL or ozfortress
+    # by default, so there is nothing to announce about them.
+    case ENV["FRONTRESS_LEAGUE"].to_s.downcase
+    when "etf2l"
       profile = Etf2lProfile.fetch(steam_uid)
       if profile
         div = profile.highest_division
         parts << "ETF2L: #{div}" if div
         parts << "ETF2L ban: #{profile.ban_reason}" if profile.banned?
       end
-    elsif SITE_HOST == "na.serveme.tf"
+    when "rgl"
       profile = RglProfile.fetch(steam_uid)
-      if profile
-        parts << "RGL ban: #{profile.ban_reason}" if profile.banned?
-      end
-    elsif SITE_HOST == "au.serveme.tf"
+      parts << "RGL ban: #{profile.ban_reason}" if profile&.banned?
+    when "ozfortress"
       profile = OzfortressProfile.fetch(steam_uid)
       if profile
         div = profile.highest_division

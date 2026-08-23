@@ -7,7 +7,7 @@
   - demos_tf_hint = "#{link_to('Get your demos.tf API key', 'https://demos.tf/upload', :target => '_blank')} on the demos.tf website, and enter it here".html_safe
   = f.input :logs_tf_api_key, :placeholder => "logs.tf API key", :hint => logs_tf_hint, :as => "string"
   = f.input :demos_tf_api_key, :placeholder => "demos.tf API key", :hint => demos_tf_hint
-  = f.input :api_key, label: "serveme.tf API key", :disabled => true, :readonly => true, :as => "string"
+  = f.input :api_key, label: "#{SITE_HOST} API key", :disabled => true, :readonly => true, :as => "string"
 
   .col-md-offset-2
     %button.btn.btn-primary{:type => :submit}
@@ -17,13 +17,13 @@
 - if current_user.discord_uid.present?
   %p
     Your Discord account is linked. You can use
-    %code= "/#{SITE_HOST == 'serveme.tf' ? 'serveme' : "serveme-#{SITE_HOST.split('.').first}"}"
+    %code= "/#{Frontress::DISCORD_COMMAND}"
     commands in Discord.
     = button_to "Unlink", unlink_discord_path, method: :delete, class: "btn btn-danger btn-sm", form: { style: "display: inline" }, data: { confirm: "Are you sure you want to unlink your Discord account?" }
 - else
   %p
     Link your Discord account to use
-    %code= "/#{SITE_HOST == 'serveme.tf' ? 'serveme' : "serveme-#{SITE_HOST.split('.').first}"}"
+    %code= "/#{Frontress::DISCORD_COMMAND}"
     commands in Discord.
     = link_to "Link Discord", discord_link_path, class: "btn btn-primary btn-sm"
 

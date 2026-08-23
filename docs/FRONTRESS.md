@@ -89,6 +89,38 @@ first.
 Until the image exists somewhere `docker` can pull it from, provisioning fails
 with an image-not-found error, and no amount of correct configuration helps.
 
+## One site, one name
+
+Upstream serveme runs four sites (`serveme.tf`, `na.`, `au.`, `sea.`) and the
+code knows it: a region switcher in the navigation, per-region Stripe keys,
+per-region league bans, a banner telling North Americans to go somewhere else,
+`direct.` hostnames for game servers, `fastdl.serveme.tf` links, an API-key
+label with another site's name on it.
+
+This fork is one site, and every one of those now derives from `SITE_URL`:
+
+| | |
+| --- | --- |
+| page copy, API-key label, API docs | `SITE_HOST` |
+| where servers send logs and which host may RCON | `FRONTRESS_DIRECT_HOST`, `FRONTRESS_LOG_ADDRESS` |
+| map download links | `FRONTRESS_FASTDL_URL` (no link at all when unset) |
+| Discord invite and slash command | `FRONTRESS_DISCORD_URL`, `FRONTRESS_DISCORD_COMMAND` |
+| source link | `FRONTRESS_SOURCE_URL` |
+| cloud regions, log time zone | `FRONTRESS_REGION`, `FRONTRESS_TIME_ZONE` |
+| league bans and divisions | `FRONTRESS_LEAGUE` (none by default) |
+
+`SITE_HOST` is derived from `SITE_URL` when it is not set separately, because
+setting one and forgetting the other is how a site ends up calling itself
+`localhost` on every page.
+
+The region predicates (`au_system?` and friends) still exist and all answer
+false, so the branches behind them never render. That is deliberate: it keeps a
+dozen views compiling without rewriting each one.
+
+What is *not* touched: `config/deploy.*.yml` and `.kamal/` still describe
+upstream's own machines. They are inert in a compose deployment; delete them if
+you never plan to run kamal.
+
 ## Ports
 
 Containers run on the **host's** network, so every port below is a port on the

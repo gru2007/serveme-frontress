@@ -1,22 +1,9 @@
 %nav.navbar.navbar-expand-md.navbar-dark.bg-primary
   .navbar-brand{href: "#"}
     %ul.nav.navbar-nav
-      %li.dropdown
+      -# One site: the brand is the site, and there is no region to switch to.
+      %li.nav-item
         = link_to(SITE_HOST, root_url)
-        %a.dropdown-toggle{data: {"bs-toggle" => "dropdown"}, href: "#"}
-        .dropdown-menu#serveme_links
-          = link_to('https://serveme.tf', class: "dropdown-item") do
-            %span{class: ["flags", "flags-eu"]}
-            serveme.tf (Europe)
-          = link_to('https://au.serveme.tf', class: "dropdown-item") do
-            %span{class: ["flags", "flags-au"]}
-            au.serveme.tf (Australia)
-          = link_to('https://na.serveme.tf', class: "dropdown-item") do
-            %span{class: ["flags", "flags-us"]}
-            na.serveme.tf (North-America)
-          = link_to('https://sea.serveme.tf', class: "dropdown-item") do
-            %span{class: ["flags", "flags-sg"]}
-            sea.serveme.tf (Asia)
 
   %button.navbar-toggler{type: "button", data: { "bs-toggle" => "collapse", "bs-target" => "#serveme-navbar" }, "aria-label": "Toggle navigation", "aria-controls": "serveme-navbar", "aria-expanded": "false"}
     %span.navbar-toggler-icon
@@ -89,10 +76,11 @@
             %i.fa.fa-shield
             Privacy
           .dropdown-divider
-          = link_to("https://discord.gg/0s38RdItLiCmARMm", title: "serveme.tf on discord", class: "dropdown-item", target: "_blank") do
-            = image_tag "discord.png", alt: "Join our Discord server", class: "nav-icon"
-            Discord
-          = link_to "https://github.com/Arie/serveme", title: "serveme.tf source code", class: "dropdown-item", target: "_blank" do
+          - if Frontress::DISCORD_URL.present?
+            = link_to(Frontress::DISCORD_URL, title: "#{SITE_HOST} on discord", class: "dropdown-item", target: "_blank") do
+              = image_tag "discord.png", alt: "Join our Discord server", class: "nav-icon"
+              Discord
+          = link_to Frontress::SOURCE_URL, title: "#{SITE_HOST} source code", class: "dropdown-item", target: "_blank" do
             = image_tag "octocat.png", alt: "Fork me on GitHub", class: "nav-icon"
             GitHub
 
@@ -149,10 +137,10 @@
               = link_to admin_docker_hosts_path, class: "dropdown-item" do
                 %i.fa.fa-server
                 Docker Hosts
-              - if SITE_HOST == "serveme.tf"
+              - if ENV["FRONTRESS_BUILD_IMAGE"].present?
                 = link_to admin_cloud_image_builds_path, class: "dropdown-item" do
                   %i.fa.fa-cube
-                  Cloud Image
+                  Server Image
               = link_to admin_server_notifications_path, class: "dropdown-item" do
                 %i.fa.fa-bell
                 Server Notifications
@@ -209,9 +197,10 @@
             Login with Steam
     %ul.nav.navbar-nav.ms-auto.d-none.d-md-flex
       %li.nav-item
-        = link_to("https://discord.gg/0s38RdItLiCmARMm", title: "serveme.tf on discord", class: "discord", target: "_blank") do
-          = image_tag "discord.png", alt: "Join our Discord server", class: "nav-icon-lg"
-        = link_to "https://github.com/Arie/serveme", title: "serveme.tf source code", class: "octocat", target: "_blank" do
+        - if Frontress::DISCORD_URL.present?
+          = link_to(Frontress::DISCORD_URL, title: "#{SITE_HOST} on discord", class: "discord", target: "_blank") do
+            = image_tag "discord.png", alt: "Join our Discord server", class: "nav-icon-lg"
+        = link_to Frontress::SOURCE_URL, title: "#{SITE_HOST} source code", class: "octocat", target: "_blank" do
           = image_tag "octocat.png", alt: "Fork me on GitHub", class: "nav-icon-lg"
       %li.nav-item
         .account

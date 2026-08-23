@@ -69,13 +69,13 @@ class DiscordController < ApplicationController
     # Find serveme user by Steam ID
     user = User.find_by(uid: steam_uid)
     unless user
-      return render plain: "No serveme.tf account found for Steam ID #{steam_uid}. Please create a reservation first to create your account.", status: :not_found
+      return render plain: "No #{SITE_HOST} account found for Steam ID #{steam_uid}. Please create a reservation first to create your account.", status: :not_found
     end
 
     # Check if Discord is already linked to another user
     existing_link = User.where(discord_uid: discord_uid).where.not(id: user.id).first
     if existing_link
-      return render plain: "This Discord account is already linked to another serveme.tf user (#{existing_link.nickname}).", status: :conflict
+      return render plain: "This Discord account is already linked to another #{SITE_HOST} user (#{existing_link.nickname}).", status: :conflict
     end
 
     # Link the accounts
@@ -151,17 +151,13 @@ class DiscordController < ApplicationController
     Rails.application.credentials.dig(:discord, :"#{region_key}_client_secret")
   end
 
+  # One site, one set of Discord credentials, one command name.
   def region_key
-    case SITE_URL
-    when /na\.serveme\.tf/ then "na"
-    when /sea\.serveme\.tf/ then "sea"
-    when /au\.serveme\.tf/ then "au"
-    else "eu"
-    end
+    Frontress::REGION.downcase
   end
 
   def discord_command_name
-    region_key == "eu" ? "serveme" : "serveme-#{region_key}"
+    Frontress::DISCORD_COMMAND
   end
 
   def discord_callback_url

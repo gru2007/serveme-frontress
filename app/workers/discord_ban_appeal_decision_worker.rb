@@ -34,7 +34,7 @@ class DiscordBanAppealDecisionWorker
     DiscordApiClient.archive_thread(thread_id: thread_id)
 
     # DM user
-    send_dm(user.discord_uid, "Your ban appeal on serveme.tf has been approved. You should be able to use the service again soon.")
+    send_dm(user.discord_uid, "Your ban appeal on #{SITE_HOST} has been approved. You should be able to use the service again soon.")
 
     # Update admin message
     update_admin_message(admin_message_id, admin_name, "approved")
@@ -57,7 +57,7 @@ class DiscordBanAppealDecisionWorker
     DiscordApiClient.archive_thread(thread_id: thread_id)
 
     # DM user
-    send_dm(user.discord_uid, "Your ban appeal on serveme.tf has been denied.")
+    send_dm(user.discord_uid, "Your ban appeal on #{SITE_HOST} has been denied.")
 
     # Update admin message
     update_admin_message(admin_message_id, admin_name, "denied")

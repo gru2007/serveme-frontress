@@ -17,7 +17,7 @@ module Mcp
         "Triggers a background build on the EU server that pulls the latest node:20-alpine base, " \
         "clones the upstream websocket-echo-server source, and pushes :latest to Docker Hub. " \
         "Hosts pick up the new image the next time `provision` is run on them. " \
-        "Only runs on the EU region (serveme.tf)."
+        "Only runs on the deployment that builds images (FRONTRESS_BUILD_IMAGE)."
       end
 
       sig { override.returns(T::Hash[Symbol, T.untyped]) }
@@ -32,7 +32,7 @@ module Mcp
 
       sig { override.params(params: T::Hash[Symbol, T.untyped]).returns(T::Hash[Symbol, T.untyped]) }
       def execute(params)
-        return { error: "Only available on the EU region (serveme.tf)" } unless SITE_HOST == "serveme.tf"
+        return { error: "Only available on the deployment that builds images" } if ENV["FRONTRESS_BUILD_IMAGE"].blank?
 
         BuildWebsocketEchoImageWorker.perform_async
 

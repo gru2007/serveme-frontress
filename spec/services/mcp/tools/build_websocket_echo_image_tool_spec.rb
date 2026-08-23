@@ -16,18 +16,18 @@ RSpec.describe Mcp::Tools::BuildWebsocketEchoImageTool do
   describe "#execute" do
     let(:tool) { described_class.new(create(:user, :admin)) }
 
-    it "queues the build worker on the EU region" do
-      stub_const("SITE_HOST", "serveme.tf")
+    it "queues the build worker where images are published" do
+      stub_const("ENV", ENV.to_h.merge("FRONTRESS_BUILD_IMAGE" => "1"))
       expect(BuildWebsocketEchoImageWorker).to receive(:perform_async)
       result = tool.execute({})
       expect(result[:status]).to eq("queued")
     end
 
-    it "refuses to run on a non-EU region" do
-      stub_const("SITE_HOST", "na.serveme.tf")
+    it "refuses to run where images are not published" do
+      stub_const("ENV", ENV.to_h.merge("FRONTRESS_BUILD_IMAGE" => nil))
       expect(BuildWebsocketEchoImageWorker).not_to receive(:perform_async)
       result = tool.execute({})
-      expect(result[:error]).to include("EU region")
+      expect(result[:error]).to include("builds images")
     end
   end
 end

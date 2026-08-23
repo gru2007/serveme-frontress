@@ -6,14 +6,14 @@
 %p{class: "text-faint mb-4"} Last updated: 24 June 2026
 
 %p{class: "text-muted mb-4"}
-  serveme.tf lets you reserve Team Fortress 2 servers. This page explains what personal data we collect, why, what we do with it, and the rights you have under the EU General Data Protection Regulation (GDPR).
+  #{SITE_HOST} lets you reserve Team Frontress servers. This page explains what personal data we collect, why, what we do with it, and the rights you have under the EU General Data Protection Regulation (GDPR).
 
 %h2{class: "text-xl font-semibold mt-8 mb-3"} Who we are
 %p{class: "text-muted mb-4"}
-  serveme.tf is the
+  #{SITE_HOST} is the
   %strong data controller
   for the personal data described here. You can reach us on
-  = link_to "our Discord", "https://discord.gg/0s38RdItLiCmARMm", target: "_blank", class: "link"
+  = community_discord_link("our Discord", class: "link")
   for any privacy question or request.
 
 %h2{class: "text-xl font-semibold mt-8 mb-3"} What we store and why
@@ -69,7 +69,7 @@
 %p{class: "text-muted mb-4"}
   %strong Accountability:
   every search a league admin makes is logged in detail. If you'd like to know whether a league admin has looked up your details, just ask us on
-  = link_to "our Discord", "https://discord.gg/0s38RdItLiCmARMm", target: "_blank", class: "link"
+  = community_discord_link("our Discord", class: "link")
   and we'll check the logs for you. We do not tolerate misuse of this feature, and access is removed from anyone who abuses it.
 
 %h2{class: "text-xl font-semibold mt-8 mb-3"} Other players and RCON
@@ -118,7 +118,7 @@
   You can ask us to show you the data we hold about you, correct it, delete it, or limit what we do with it. You can object to processing, ask for a copy of your data, and withdraw any consent (like the Discord link) at any time. You can also complain to your country's data protection authority.
 %p{class: "text-muted mb-4"}
   To do any of this, message us on
-  = link_to "our Discord", "https://discord.gg/0s38RdItLiCmARMm", target: "_blank", class: "link"
+  = community_discord_link("our Discord", class: "link")
   \. Some data, like IP history tied to a ban, may be kept anyway where we have a strong reason to prevent ban evasion.
 
 %h2{class: "text-xl font-semibold mt-8 mb-3"} Cookies

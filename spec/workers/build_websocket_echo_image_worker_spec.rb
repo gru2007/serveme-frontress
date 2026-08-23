@@ -9,7 +9,7 @@ describe BuildWebsocketEchoImageWorker do
   let(:ok) { instance_double(Process::Status, success?: true, exitstatus: 0) }
 
   before do
-    stub_const("SITE_HOST", "serveme.tf")
+    stub_const("ENV", ENV.to_h.merge("FRONTRESS_BUILD_IMAGE" => "1"))
     allow(Sidekiq).to receive(:redis).and_yield(redis)
     allow(redis).to receive(:set).and_return(true)
     allow(redis).to receive(:del)
@@ -22,8 +22,8 @@ describe BuildWebsocketEchoImageWorker do
     worker.perform
   end
 
-  it "skips when not on the EU region" do
-    stub_const("SITE_HOST", "na.serveme.tf")
+  it "skips on a deployment that does not build images" do
+    stub_const("ENV", ENV.to_h.merge("FRONTRESS_BUILD_IMAGE" => nil))
     expect(Open3).not_to receive(:capture2e)
     worker.perform
   end

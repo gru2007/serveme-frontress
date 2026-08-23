@@ -180,6 +180,41 @@ module Frontress
     "#{key.ssh_type} #{[ key.to_blob ].pack('m0')}"
   end
 
+  # This site, as game servers and other machines reach it.
+  #
+  # Upstream runs four sites (serveme.tf, na., au., sea.) and points servers at
+  # a "direct." hostname that bypasses Cloudflare. There is one site here and
+  # there is no reason to assume it has such a subdomain, so the default is
+  # simply the site's own host.
+  def self.direct_host
+    ENV["FRONTRESS_DIRECT_HOST"].presence || SITE_HOST
+  end
+
+  # Where game servers send their console logs. The port is the one the log
+  # daemon is published on, not the one it listens on inside the container.
+  def self.log_address
+    ENV["FRONTRESS_LOG_ADDRESS"].presence || "#{direct_host}:#{ENV.fetch('SERVEME_LOG_PORT', '40001')}"
+  end
+
+  # The community's own links, for the pages that used to point at serveme.tf's.
+  # Empty means the link is not shown at all rather than pointing somewhere that
+  # is not ours.
+  DISCORD_URL = ENV.fetch("FRONTRESS_DISCORD_URL", "").freeze
+
+  # The Discord slash command this site answers to. Upstream derives it from
+  # which of its four sites you are on; there is one here.
+  DISCORD_COMMAND = ENV.fetch("FRONTRESS_DISCORD_COMMAND", "frontress").freeze
+  SOURCE_URL = ENV.fetch("FRONTRESS_SOURCE_URL", "https://github.com/gru2007/serveme-frontress").freeze
+
+  # Where item donations go, if this community takes them. Upstream links its
+  # own maintainer's Steam trade offer; empty here means the offer is simply
+  # not made.
+  TRADE_URL = ENV.fetch("FRONTRESS_TRADE_URL", "").freeze
+
+  # The region this site serves, for the cloud-VM providers that list locations
+  # by region. One site, one region.
+  REGION = ENV.fetch("FRONTRESS_REGION", "EU").freeze
+
   # The game coordinator. Reservations it creates are matchmaking reservations,
   # and the agent inside each container reports the match back to it.
   COORDINATOR_URL = ENV.fetch("FRONTRESS_COORDINATOR_URL", "").freeze

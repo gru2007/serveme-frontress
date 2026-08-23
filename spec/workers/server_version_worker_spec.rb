@@ -24,8 +24,8 @@ describe ServerVersionWorker do
         expect(ServerUpdateWorker).to have_received(:perform_async).with(9_999_999)
       end
 
-      context "on the EU region" do
-        before { stub_const("SITE_HOST", "serveme.tf") }
+      context "on the deployment that builds the image" do
+        before { stub_const("ENV", ENV.to_h.merge("FRONTRESS_BUILD_IMAGE" => "1")) }
 
         it "creates a CloudImageBuild record for the new version" do
           expect { worker.perform }.to change(CloudImageBuild, :count).by(1)
@@ -39,8 +39,8 @@ describe ServerVersionWorker do
         end
       end
 
-      context "on a non-EU region" do
-        before { stub_const("SITE_HOST", "na.serveme.tf") }
+      context "on a deployment that only consumes the image" do
+        before { stub_const("ENV", ENV.to_h.merge("FRONTRESS_BUILD_IMAGE" => nil)) }
 
         it "does not create a CloudImageBuild record" do
           expect { worker.perform }.not_to change(CloudImageBuild, :count)
@@ -55,7 +55,7 @@ describe ServerVersionWorker do
 
     context "when the version is unchanged" do
       before do
-        stub_const("SITE_HOST", "serveme.tf")
+        stub_const("ENV", ENV.to_h.merge("FRONTRESS_BUILD_IMAGE" => "1"))
         allow(Server).to receive(:fetch_latest_version).and_return(9_999_999)
         allow(Rails.cache).to receive(:read).with("latest_server_version").and_return(9_999_999)
       end

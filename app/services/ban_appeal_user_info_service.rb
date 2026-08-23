@@ -119,11 +119,6 @@ class BanAppealUserInfoService
 
   sig { returns(String) }
   def detect_region
-    case SITE_HOST
-    when "na.serveme.tf" then "na"
-    when "sea.serveme.tf" then "sea"
-    when "au.serveme.tf" then "au"
-    else "eu"
-    end
+    Frontress::REGION.downcase
   end
 end

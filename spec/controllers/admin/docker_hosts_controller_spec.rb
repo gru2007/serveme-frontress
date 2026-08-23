@@ -14,14 +14,14 @@ describe Admin::DockerHostsController do
 
   describe "#index" do
     it "lists all docker hosts" do
-      docker_host = create(:docker_host, hostname: "de1.serveme.tf")
+      docker_host = create(:docker_host, hostname: "gs1.example.org")
       get :index
       expect(response).to be_successful
       expect(response.body).to include("de1.serveme.tf")
     end
 
     it "shows setup status" do
-      create(:docker_host, hostname: "de1.serveme.tf", setup_status: "ready")
+      create(:docker_host, hostname: "gs1.example.org", setup_status: "ready")
       get :index
       expect(response).to be_successful
       expect(response.body).to include("ready")
@@ -47,7 +47,7 @@ describe Admin::DockerHostsController do
           location_id: location.id,
           city: "Frankfurt",
           ip: "1.2.3.4",
-          hostname: "de1.serveme.tf",
+          hostname: "gs1.example.org",
           start_port: 27015,
           max_containers: 4,
           active: false
@@ -63,7 +63,7 @@ describe Admin::DockerHostsController do
   end
 
   describe "#setup" do
-    let(:docker_host) { create(:docker_host, hostname: "de1.serveme.tf", setup_status: "pending") }
+    let(:docker_host) { create(:docker_host, hostname: "gs1.example.org", setup_status: "pending") }
 
     it "renders the setup page" do
       get :setup, params: { id: docker_host.id }
@@ -73,7 +73,7 @@ describe Admin::DockerHostsController do
   end
 
   describe "#run_setup_step" do
-    let(:docker_host) { create(:docker_host, hostname: "de1.serveme.tf", setup_status: "pending") }
+    let(:docker_host) { create(:docker_host, hostname: "gs1.example.org", setup_status: "pending") }
 
     %w[create_vm dns ssh provision ssl pull_image].each do |step|
       it "enqueues a DockerHostSetupStepWorker for the #{step.inspect} step instead of running synchronously" do
@@ -96,7 +96,7 @@ describe Admin::DockerHostsController do
   end
 
   describe "#update" do
-    let(:docker_host) { create(:docker_host, hostname: "de1.serveme.tf") }
+    let(:docker_host) { create(:docker_host, hostname: "gs1.example.org") }
 
     it "updates hostname and ip" do
       patch :update, params: { id: docker_host.id, docker_host: { hostname: "de2.serveme.tf", ip: "5.6.7.8" } }
@@ -108,7 +108,7 @@ describe Admin::DockerHostsController do
   end
 
   describe "#destroy" do
-    let(:docker_host) { create(:docker_host, hostname: "de1.serveme.tf", active: true) }
+    let(:docker_host) { create(:docker_host, hostname: "gs1.example.org", active: true) }
 
     it "deactivates the docker host" do
       delete :destroy, params: { id: docker_host.id }
@@ -118,7 +118,7 @@ describe Admin::DockerHostsController do
   end
 
   describe "#activate" do
-    let(:docker_host) { create(:docker_host, hostname: "de1.serveme.tf", active: false) }
+    let(:docker_host) { create(:docker_host, hostname: "gs1.example.org", active: false) }
 
     it "activates the docker host" do
       post :activate, params: { id: docker_host.id }

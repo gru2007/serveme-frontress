@@ -44,7 +44,7 @@ class CloudServerOrphanCleanupWorker
   end
 
   def region_label
-    region = SITE_HOST == "serveme.tf" ? "eu" : SITE_HOST.split(".").first
+    region = Frontress::REGION.downcase
     "serveme-#{region}"
   end
 end

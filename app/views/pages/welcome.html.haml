@@ -25,7 +25,6 @@
         .col-12.col-md-4.align-self-end
           = render 'reservations/available_servers'
 
-= render 'shared/point_to_na'
 
 .row
   .col-12
@@ -41,17 +40,9 @@
       = link_to('consider contributing to the operating costs by donating.', donate_path)
       All donations get divided between the server providers based on time played on their servers.
 
-      You can also
-      - if sea_system?
-        = link_to('send the tradebot a trade offer.', 'https://steamcommunity.com/tradeoffer/new/?partner=328658734&token=3vDIZUwa')
-
-        The current rate is 2 keys per month, but you can also send some items just to say thanks.
-      - elsif au_system?
-        = link_to('support ozfortress on Patreon to get access to au.serveme.tf Premium.', 'https://patreon.com/ozfortress')
-
-        All of ozfortress' Patreon Tiers include au.serveme.tf Premium!
-      - else
-        = link_to('send me a TF2 trade offer.', 'https://steamcommunity.com/tradeoffer/new/?partner=231702&token=POpKIGaL')
+      - if Frontress::TRADE_URL.present?
+        You can also
+        = link_to('send a trade offer.', Frontress::TRADE_URL)
 
         The current rate is 2 keys per month, but you can also send some items just to say thanks.
 
@@ -74,7 +65,7 @@
       = link_to "ozfortress Discord.", 'https://discord.gg/7E6kC2H', :target => '_blank'
     - else
       Alternatively, you could leave a message on
-      = link_to "our Discord", 'https://discord.gg/0s38RdItLiCmARMm', :target => '_blank'
+      = community_discord_link
 
 .row &nbsp;
 

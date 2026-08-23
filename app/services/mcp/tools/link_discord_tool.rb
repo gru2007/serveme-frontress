@@ -13,7 +13,7 @@ module Mcp
 
       sig { override.returns(String) }
       def self.description
-        "Link a Discord account to a serveme.tf user account. " \
+        "Link a Discord account to a #{SITE_HOST} user account. " \
         "The Discord bot calls this after verifying the user's Steam connection in Discord. " \
         "Once linked, users can use Discord commands without re-verification."
       end

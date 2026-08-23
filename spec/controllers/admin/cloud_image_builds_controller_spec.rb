@@ -10,14 +10,14 @@ describe Admin::CloudImageBuildsController do
   let(:regular_user) { create(:user) }
 
   before do
-    stub_const("SITE_HOST", "serveme.tf")
+    stub_const("ENV", ENV.to_h.merge("FRONTRESS_BUILD_IMAGE" => "1"))
     allow(DockerImageRegistryClient).to receive(:new).and_return(instance_double(DockerImageRegistryClient, fetch_digest: "sha256:remote"))
     SiteSetting.set(DockerImagePollWorker::DIGEST_SETTING_KEY, "sha256:local")
     allow(Turbo::StreamsChannel).to receive(:broadcast_replace_to)
   end
 
   describe "GET #index" do
-    context "as admin on EU" do
+    context "as admin on the publishing deployment" do
       before { sign_in admin_user }
 
       it "renders successfully" do
@@ -66,16 +66,16 @@ describe Admin::CloudImageBuildsController do
       end
     end
 
-    context "on non-EU region" do
+    context "on a deployment that does not publish the image" do
       before do
         sign_in admin_user
-        stub_const("SITE_HOST", "na.serveme.tf")
+        stub_const("ENV", ENV.to_h.merge("FRONTRESS_BUILD_IMAGE" => nil))
       end
 
       it "redirects to root with alert" do
         get :index
         expect(response).to redirect_to(root_path)
-        expect(flash[:alert]).to include("EU region")
+        expect(flash[:alert]).to include("publishes the image")
       end
     end
   end

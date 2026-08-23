@@ -550,15 +550,8 @@ class LogWorker
 
   sig { returns(String) }
   def time_zone
-    @time_zone ||= case SITE_HOST
-    when "na.serveme.tf"
-      "America/Chicago"
-    when "sea.serveme.tf"
-      "Asia/Singapore"
-    when "au.serveme.tf"
-      "Australia/Sydney"
-    else
-      "Europe/Amsterdam"
-    end
+    # Which day a log belongs to depends on where the site lives, not on
+    # which of four deployments it is.
+    @time_zone ||= ENV.fetch("FRONTRESS_TIME_ZONE", "Europe/Amsterdam")
   end
 end

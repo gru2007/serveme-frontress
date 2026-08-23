@@ -11,7 +11,7 @@ class BuildCaddyCloudflareImageWorker
   DOCKERHUB_IMAGE = "serveme/caddy-cloudflare"
 
   def perform
-    return unless SITE_HOST == "serveme.tf"
+    return unless ENV["FRONTRESS_BUILD_IMAGE"].present?
     return unless acquire_lock
 
     tag = "#{DOCKERHUB_IMAGE}:latest"

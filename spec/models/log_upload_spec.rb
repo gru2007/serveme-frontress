@@ -56,7 +56,7 @@ describe LogUpload do
       subject.logs_tf_api_key.should == '12345'
     end
 
-    it "returns the serveme.tf logs tf API key constant if there's no api key for the user" do
+    it "returns the site's logs.tf API key constant if there's no api key for the user" do
       user = double(logs_tf_api_key: nil)
       subject.stub(user: user)
       expect(subject.logs_tf_api_key).to eql Rails.application.credentials.dig(:logs_tf, :api_key)

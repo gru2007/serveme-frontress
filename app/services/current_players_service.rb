@@ -122,7 +122,7 @@ class CurrentPlayersService
 
   sig { returns(String) }
   def self.distance_unit_for_region
-    SITE_URL == "https://na.serveme.tf" ? "mi" : "km"
+    Frontress::REGION == "NA" ? "mi" : "km"
   end
 
   sig { void }

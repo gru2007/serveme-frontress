@@ -75,14 +75,40 @@ module ApplicationHelper
     DockerHost.active.sum { |dh| [ T.must(dh.max_containers) - counts.fetch(dh.id.to_s, 0), 0 ].max }
   end
 
+  # Upstream runs four sites and branches on which one you are looking at:
+  # different currencies, different premium providers, a banner telling North
+  # Americans to use the North American one. This fork is one site, so every
+  # one of those questions has the same answer and the branches behind them
+  # never render.
+  #
+  # They are kept rather than torn out of a dozen views, so a page that asks
+  # still gets a truthful "no".
   sig { returns(T::Boolean) }
   def eu_system?
-    # NOTE: `"a" || "b"` short-circuits to the first string, so only the EU URL ever matches.
-    "https://serveme.tf" == SITE_URL
+    false
   end
 
   %w[au na sa sea].each do |subdomain|
-    define_method("#{subdomain}_system?") { SITE_URL == "https://#{subdomain}.serveme.tf" }
+    define_method("#{subdomain}_system?") { false }
+  end
+
+  # The community's Discord, when there is one. Upstream hardcoded serveme.tf's
+  # invite in a dozen places; a fork that has not set one up should show the
+  # words without a link rather than a link that goes to somebody else's server.
+  sig { params(label: String, opts: T.untyped).returns(T.untyped) }
+  def community_discord_link(label = "our Discord", **opts)
+    return label if Frontress::DISCORD_URL.blank?
+
+    link_to(label, Frontress::DISCORD_URL, **{ target: "_blank" }.merge(opts))
+  end
+
+  # Where a map file can be downloaded from, or nil when this site has no
+  # fastdl host. Upstream hardcoded fastdl.serveme.tf, which is not ours.
+  sig { params(key: T.untyped).returns(T.nilable(String)) }
+  def fastdl_url(key)
+    return nil if Frontress::FASTDL_URL.blank?
+
+    "#{Frontress::FASTDL_URL.chomp('/')}/#{key}"
   end
 
   sig { params(user: T.untyped).returns(String) }

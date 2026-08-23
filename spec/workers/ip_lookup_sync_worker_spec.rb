@@ -55,16 +55,20 @@ describe IpLookupSyncWorker do
         described_class.new.perform(999)
       end
 
-      context "when on EU region" do
+      context "when other sites are configured" do
         before do
-          stub_const("SITE_HOST", "serveme.tf")
+          stub_const("IpLookupSyncWorker::REGIONS", {
+            eu: "https://eu.example.org", na: "https://na.example.org",
+            sea: "https://sea.example.org", au: "https://au.example.org"
+          })
+          stub_const("Frontress::REGION", "EU")
         end
 
-        it "syncs to NA, SEA, and AU but not EU" do
+        it "syncs to the others but not to itself" do
           allow(Rails.application.credentials).to receive(:dig).and_return("test-api-key")
 
-          %w[na.serveme.tf sea.serveme.tf au.serveme.tf].each do |host|
-            stub_request(:post, "https://direct.#{host}/api/ip_lookups")
+          %w[na sea au].each do |region|
+            stub_request(:post, "https://#{region}.example.org/api/ip_lookups")
               .with(
                 headers: { "Authorization" => "Bearer test-api-key" },
                 body: hash_including("ip_lookup" => hash_including("ip" => "1.2.3.4"))
@@ -74,10 +78,10 @@ describe IpLookupSyncWorker do
 
           described_class.new.perform(1)
 
-          expect(WebMock).to have_requested(:post, "https://direct.na.serveme.tf/api/ip_lookups")
-          expect(WebMock).to have_requested(:post, "https://direct.sea.serveme.tf/api/ip_lookups")
-          expect(WebMock).to have_requested(:post, "https://direct.au.serveme.tf/api/ip_lookups")
-          expect(WebMock).not_to have_requested(:post, "https://direct.serveme.tf/api/ip_lookups")
+          expect(WebMock).to have_requested(:post, "https://na.example.org/api/ip_lookups")
+          expect(WebMock).to have_requested(:post, "https://sea.example.org/api/ip_lookups")
+          expect(WebMock).to have_requested(:post, "https://au.example.org/api/ip_lookups")
+          expect(WebMock).not_to have_requested(:post, "https://eu.example.org/api/ip_lookups")
         end
 
         it "skips region when credentials are missing" do
@@ -85,48 +89,48 @@ describe IpLookupSyncWorker do
           allow(Rails.application.credentials).to receive(:dig).with(:serveme, :sea).and_return(nil)
           allow(Rails.application.credentials).to receive(:dig).with(:serveme, :au).and_return("au-key")
 
-          stub_request(:post, "https://direct.na.serveme.tf/api/ip_lookups").to_return(status: 201)
-          stub_request(:post, "https://direct.au.serveme.tf/api/ip_lookups").to_return(status: 201)
+          stub_request(:post, "https://na.example.org/api/ip_lookups").to_return(status: 201)
+          stub_request(:post, "https://au.example.org/api/ip_lookups").to_return(status: 201)
 
           described_class.new.perform(1)
 
-          expect(WebMock).to have_requested(:post, "https://direct.na.serveme.tf/api/ip_lookups")
-          expect(WebMock).not_to have_requested(:post, "https://direct.sea.serveme.tf/api/ip_lookups")
-          expect(WebMock).to have_requested(:post, "https://direct.au.serveme.tf/api/ip_lookups")
+          expect(WebMock).to have_requested(:post, "https://na.example.org/api/ip_lookups")
+          expect(WebMock).not_to have_requested(:post, "https://sea.example.org/api/ip_lookups")
+          expect(WebMock).to have_requested(:post, "https://au.example.org/api/ip_lookups")
         end
       end
 
-      context "when on NA region" do
+      context "when this site is the NA one" do
         before do
-          stub_const("SITE_HOST", "na.serveme.tf")
+          stub_const("Frontress::REGION", "NA")
         end
 
         it "syncs to EU, SEA, and AU but not NA" do
           allow(Rails.application.credentials).to receive(:dig).and_return("test-api-key")
 
-          stub_request(:post, "https://direct.serveme.tf/api/ip_lookups").to_return(status: 201)
-          stub_request(:post, "https://direct.sea.serveme.tf/api/ip_lookups").to_return(status: 201)
-          stub_request(:post, "https://direct.au.serveme.tf/api/ip_lookups").to_return(status: 201)
+          stub_request(:post, "https://eu.example.org/api/ip_lookups").to_return(status: 201)
+          stub_request(:post, "https://sea.example.org/api/ip_lookups").to_return(status: 201)
+          stub_request(:post, "https://au.example.org/api/ip_lookups").to_return(status: 201)
 
           described_class.new.perform(1)
 
-          expect(WebMock).to have_requested(:post, "https://direct.serveme.tf/api/ip_lookups")
-          expect(WebMock).to have_requested(:post, "https://direct.sea.serveme.tf/api/ip_lookups")
-          expect(WebMock).to have_requested(:post, "https://direct.au.serveme.tf/api/ip_lookups")
-          expect(WebMock).not_to have_requested(:post, "https://direct.na.serveme.tf/api/ip_lookups")
+          expect(WebMock).to have_requested(:post, "https://eu.example.org/api/ip_lookups")
+          expect(WebMock).to have_requested(:post, "https://sea.example.org/api/ip_lookups")
+          expect(WebMock).to have_requested(:post, "https://au.example.org/api/ip_lookups")
+          expect(WebMock).not_to have_requested(:post, "https://na.example.org/api/ip_lookups")
         end
       end
 
       context "error handling" do
         before do
-          stub_const("SITE_HOST", "serveme.tf")
+          stub_const("Frontress::REGION", "EU")
           allow(Rails.application.credentials).to receive(:dig).and_return("test-api-key")
         end
 
         it "logs warning on HTTP error response" do
-          stub_request(:post, "https://direct.na.serveme.tf/api/ip_lookups").to_return(status: 500)
-          stub_request(:post, "https://direct.sea.serveme.tf/api/ip_lookups").to_return(status: 201)
-          stub_request(:post, "https://direct.au.serveme.tf/api/ip_lookups").to_return(status: 201)
+          stub_request(:post, "https://na.example.org/api/ip_lookups").to_return(status: 500)
+          stub_request(:post, "https://sea.example.org/api/ip_lookups").to_return(status: 201)
+          stub_request(:post, "https://au.example.org/api/ip_lookups").to_return(status: 201)
 
           expect(Rails.logger).to receive(:warn).with(/Failed to sync to na: 500/)
 
@@ -134,22 +138,22 @@ describe IpLookupSyncWorker do
         end
 
         it "logs warning on connection error and continues to other regions" do
-          stub_request(:post, "https://direct.na.serveme.tf/api/ip_lookups").to_raise(Faraday::ConnectionFailed.new("Connection refused"))
-          stub_request(:post, "https://direct.sea.serveme.tf/api/ip_lookups").to_return(status: 201)
-          stub_request(:post, "https://direct.au.serveme.tf/api/ip_lookups").to_return(status: 201)
+          stub_request(:post, "https://na.example.org/api/ip_lookups").to_raise(Faraday::ConnectionFailed.new("Connection refused"))
+          stub_request(:post, "https://sea.example.org/api/ip_lookups").to_return(status: 201)
+          stub_request(:post, "https://au.example.org/api/ip_lookups").to_return(status: 201)
 
           expect(Rails.logger).to receive(:warn).with(/Error syncing to na/)
 
           described_class.new.perform(1)
 
-          expect(WebMock).to have_requested(:post, "https://direct.sea.serveme.tf/api/ip_lookups")
-          expect(WebMock).to have_requested(:post, "https://direct.au.serveme.tf/api/ip_lookups")
+          expect(WebMock).to have_requested(:post, "https://sea.example.org/api/ip_lookups")
+          expect(WebMock).to have_requested(:post, "https://au.example.org/api/ip_lookups")
         end
 
         it "logs warning on timeout and continues" do
-          stub_request(:post, "https://direct.na.serveme.tf/api/ip_lookups").to_raise(Faraday::TimeoutError.new("Timed out"))
-          stub_request(:post, "https://direct.sea.serveme.tf/api/ip_lookups").to_return(status: 201)
-          stub_request(:post, "https://direct.au.serveme.tf/api/ip_lookups").to_return(status: 201)
+          stub_request(:post, "https://na.example.org/api/ip_lookups").to_raise(Faraday::TimeoutError.new("Timed out"))
+          stub_request(:post, "https://sea.example.org/api/ip_lookups").to_return(status: 201)
+          stub_request(:post, "https://au.example.org/api/ip_lookups").to_return(status: 201)
 
           expect(Rails.logger).to receive(:warn).with(/Error syncing to na/)
 

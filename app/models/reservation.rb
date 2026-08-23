@@ -43,7 +43,7 @@ class Reservation < ActiveRecord::Base
 
   sig { returns(Integer) }
   def self.cleanup_age_in_days
-    (SITE_HOST == "au.serveme.tf" && 7) || 30
+    Integer(ENV.fetch("FRONTRESS_CLEANUP_AGE_DAYS", 30))
   end
 
   scope :with_user_and_server, -> { includes(user: :groups).includes(server: :location) }
@@ -483,7 +483,7 @@ class Reservation < ActiveRecord::Base
 
     return T.must(user&.reservation_players&.last&.ip) if user&.reservation_players&.last&.ip
 
-    "direct.#{SITE_HOST}"
+    Frontress.direct_host
   end
 
   sig { returns(String) }

@@ -4,7 +4,7 @@
 require 'spec_helper'
 require 'swagger_helper'
 
-RSpec.describe 'serveme.tf API', type: :request do
+RSpec.describe 'the site API', type: :request do
   let(:user) { create(:user).tap { |u| u.generate_api_key! } }
   let(:admin_user) { create(:user).tap { |u| u.groups << Group.admin_group; u.generate_api_key! } }
   let(:api_key) { user.api_key }
@@ -132,7 +132,7 @@ RSpec.describe 'serveme.tf API', type: :request do
   path '/api/sdr' do
     get 'Resolve a connect string to SDR (Steam Datagram Relay) details' do
       tags 'SDR'
-      description 'Resolves a TF2 connect string (or bare ip:port) for a serveme.tf server ' \
+      description "Resolves a connect string (or bare ip:port) for one of this site's servers " \
                   'to its current Steam Datagram Relay connect details. Mirrors the /sdr web page.'
       parameter name: :ip_port, in: :query, type: :string, required: true,
                 description: 'A connect string ("connect 1.2.3.4:27015; password \"foo\"") or a bare ip:port'

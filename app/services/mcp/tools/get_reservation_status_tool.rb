@@ -74,7 +74,7 @@ module Mcp
             status: reservation_status_string(reservation),
             status_message: latest_status&.status,
             time_remaining_minutes: time_remaining_minutes(reservation),
-            manage_url: "https://serveme.tf/reservations/#{reservation.id}"
+            manage_url: "#{SITE_URL}/reservations/#{reservation.id}"
           },
           server: format_server_info(reservation),
           players: format_players(reservation)

@@ -238,11 +238,13 @@
                   %td
                     - if file_exists
                       - if map_upload.file.attached?
-                        = link_to("https://fastdl.serveme.tf/#{map_upload.file.blob.key}", class: "v2-btn v2-btn-primary v2-btn-sm", title: "Download #{map_upload.filename}") do
-                          %i.fa.fa-download
+                        - if fastdl_url("#{map_upload.file.blob.key}")
+                          = link_to(fastdl_url("#{map_upload.file.blob.key}"), class: "v2-btn v2-btn-primary v2-btn-sm", title: "Download #{map_upload.filename}") do
+                            %i.fa.fa-download
                       - elsif map_upload.filename.present?
-                        = link_to("https://fastdl.serveme.tf/maps/#{map_upload.filename}", class: "v2-btn v2-btn-primary v2-btn-sm", title: "Download #{map_upload.filename}") do
-                          %i.fa.fa-download
+                        - if fastdl_url("maps/#{map_upload.filename}")
+                          = link_to(fastdl_url("maps/#{map_upload.filename}"), class: "v2-btn v2-btn-primary v2-btn-sm", title: "Download #{map_upload.filename}") do
+                            %i.fa.fa-download
                       - else
                         %span{class: "text-faint"} No file
                     - else

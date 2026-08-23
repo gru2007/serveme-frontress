@@ -20,7 +20,7 @@ class DiscordBanAppealWorker
     enrichment = BanAppealEnrichmentService.new(discord_user_id).collect
 
     unless enrichment[:found]
-      update_interaction(interaction_token, ":x: Your Discord account is not linked to any serveme.tf region. Use `/serveme link` first.")
+      update_interaction(interaction_token, ":x: Your Discord account is not linked. Use `/#{Frontress::DISCORD_COMMAND} link` first.")
       return
     end
 
@@ -212,13 +212,9 @@ class DiscordBanAppealWorker
   end
 
   sig { params(region: T.untyped).returns(String) }
-  def region_base_url(region)
-    case region
-    when "na" then "https://na.serveme.tf"
-    when "sea" then "https://sea.serveme.tf"
-    when "au" then "https://au.serveme.tf"
-    else "https://serveme.tf"
-    end
+  # One site: whichever region a ban appeal names, it is this one.
+  def region_base_url(_region)
+    SITE_URL
   end
 
   sig { params(iso_string: T.untyped).returns(String) }

@@ -166,7 +166,7 @@ module CloudProvider
 
     sig { params(cloud_server: CloudServer).returns(String) }
     def cloud_server_name(cloud_server)
-      region = SITE_HOST == "serveme.tf" ? "eu" : SITE_HOST.split(".").first
+      region = Frontress::REGION.downcase
       "serveme-#{region}-#{cloud_server.cloud_reservation_id}"
     end
 

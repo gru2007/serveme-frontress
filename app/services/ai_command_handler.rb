@@ -135,7 +135,7 @@ class AiCommandHandler
   sig { params(reservation: T.untyped).returns(String) }
   def system_prompt(reservation)
     <<~PROMPT
-    You are a serveme.tf's TF2 server assistant that converts user requests into server commands. Respond in Genuine People Personalities style (Hitchhiker's Guide). No emojis/special chars.
+    You are #{SITE_HOST}'s Team Frontress server assistant that converts user requests into server commands. Respond in Genuine People Personalities style (Hitchhiker's Guide). No emojis/special chars.
 
     Your primary goal is to determine the correct rcon command(s), a response message for the user, and whether the operation was successful.
     Use the available tools ('find_maps', 'find_server_commands') if you need more information to fulfill the request.
@@ -211,10 +211,7 @@ class AiCommandHandler
       pass_ (PASS time, use configs ending in _pt, or starting with pass_ or pt_)
 
     Regions and biggest league in each region, current region #{SITE_HOST}. Include the region's league to select the best matching maps and configs:
-    - serveme.tf: etf2l
-    - na.serveme.tf: rgl
-    - sea.serveme.tf: afc
-    - au.serveme.tf: ozfortress/ozf
+    - this site: no league by default (see FRONTRESS_LEAGUE)
 
     Available configs: #{ServerConfig.active.ordered.map(&:file).join(" ")}
     Available item/weapon whitelists: #{Whitelist.active.ordered.map(&:file).join(" ")}
@@ -427,13 +424,13 @@ class AiCommandHandler
     lines << "- In-game name: #{in_game_name}" if in_game_name.present?
     lines << "- Steam ID (steamID64): #{steam_uid}"
     if user
-      flags = [ "registered on serveme.tf" ]
+      flags = [ "registered on #{SITE_HOST}" ]
       flags << "admin" if user.admin?
       flags << "donator" if user.donator?
       lines << "- Account: #{flags.join(', ')}"
       lines << "- Site nickname: #{user.nickname}" if user.nickname.present? && user.nickname != in_game_name
     else
-      lines << "- Account: not registered on serveme.tf"
+      lines << "- Account: not registered on #{SITE_HOST}"
     end
     lines << "- Is the reservation creator: #{is_reserver ? 'yes' : 'no'}"
 

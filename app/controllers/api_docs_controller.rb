@@ -11,16 +11,8 @@ class ApiDocsController < ApplicationController
     current_host = "#{request.protocol}#{request.host_with_port}"
     current_description = if request.host.include?("localhost")
                            "Development server (current)"
-    elsif request.host == "serveme.tf"
-                           "Production server (EU) - current"
-    elsif request.host == "na.serveme.tf"
-                           "Production server (NA) - current"
-    elsif request.host == "au.serveme.tf"
-                           "Production server (AU) - current"
-    elsif request.host == "sea.serveme.tf"
-                           "Production server (SEA) - current"
     else
-                           "Current server"
+                           "#{SITE_HOST} (current)"
     end
 
     current_server = {

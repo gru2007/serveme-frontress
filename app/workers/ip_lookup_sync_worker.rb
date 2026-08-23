@@ -7,10 +7,13 @@ class IpLookupSyncWorker
   sidekiq_options queue: :low, retry: 3
 
   REGIONS = {
-    eu: "https://direct.serveme.tf",
-    na: "https://direct.na.serveme.tf",
-    sea: "https://direct.sea.serveme.tf",
-    au: "https://direct.au.serveme.tf"
+    # Upstream keeps four sites in sync with each other. This fork is one
+    # site; FRONTRESS_PEER_SITES ("eu=https://a,na=https://b") is here for a
+    # community that grows into more, and empty means nothing is synced.
+    **ENV.fetch("FRONTRESS_PEER_SITES", "").split(",").map(&:strip).reject(&:empty?).to_h { |pair|
+      key, url = pair.split("=", 2)
+      [ key.to_sym, url ]
+    }
   }.freeze
 
   def perform(ip_lookup_id)
@@ -36,12 +39,7 @@ class IpLookupSyncWorker
   end
 
   def detect_current_region
-    case SITE_HOST
-    when "serveme.tf" then :eu
-    when "na.serveme.tf" then :na
-    when "sea.serveme.tf" then :sea
-    when "au.serveme.tf" then :au
-    end
+    Frontress::REGION.downcase.to_sym
   end
 
   def build_payload(ip_lookup)
