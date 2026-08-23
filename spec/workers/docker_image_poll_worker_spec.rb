@@ -18,11 +18,11 @@ describe DockerImagePollWorker do
   end
 
   define_method(:stub_registry) do |digest:, tags: [ "latest" ]|
-    stub_request(:get, /auth\.docker\.io/).to_return(status: 200, body: token_response)
-    stub_request(:head, /registry-1\.docker\.io/).to_return(
+    stub_request(:get, /ghcr\.io\/token/).to_return(status: 200, body: token_response)
+    stub_request(:head, /ghcr\.io\/v2/).to_return(
       status: 200, headers: { "docker-content-digest" => digest }
     )
-    stub_request(:get, %r{registry-1\.docker\.io/v2/.+/tags/list}).to_return(
+    stub_request(:get, %r{ghcr\.io/v2/.+/tags/list}).to_return(
       status: 200, body: { "tags" => tags }.to_json
     )
   end
@@ -59,7 +59,7 @@ describe DockerImagePollWorker do
     it "handles registry errors gracefully" do
       create(:docker_host)
 
-      stub_request(:get, /auth\.docker\.io/).to_return(status: 500)
+      stub_request(:get, /ghcr\.io\/token/).to_return(status: 500)
 
       expect(DockerHostImagePullWorker).not_to receive(:perform_async)
       expect { worker.perform }.not_to raise_error

@@ -1,66 +1,74 @@
-# [serveme.tf](http://serveme.tf)
+# serveme, for Team Frontress
 
+A fork of [serveme.tf](https://serveme.tf) that hosts servers for one game:
+**Team Frontress**. Reserve a server, get a container running the game with the
+right ruleset, play, and the container goes away when the reservation ends.
 
-Competitive TF2 servers worldwide in 60 seconds or less
+**Start here:** [docs/DOCKER.md](docs/DOCKER.md) to run the site,
+[docs/FRONTRESS.md](docs/FRONTRESS.md) for what makes it Frontress-only and how
+the matchmaking coordinator plugs into it.
 
-## Requirements
-
-* Ruby 4.0+ — install via [mise](https://mise.jdx.dev/). See `.ruby-version` for the exact version.
-* A Steam API key for user sign in
-* Postgres database
-* Redis
-
-### Server Requirements
-* A Source game dedicated server installation, only tested with TF2 on linux for now.
-* Gameserver started with `-port PORTNUMBER -autoupdate` in the startup line
-* [libmaxminddb](https://github.com/maxmind/libmaxminddb), for GeoIP lookups. Or you can configure another one in the
-  [geocoder initializer](https://github.com/alexreisner/geocoder)
-* Ripgrep installed
-
-## Running locally
-1. Make sure you've installed the requirements.
-2. Review the yaml files in the `config` directory.
-3. Get a Steam API key from https://steamcommunity.com/dev/apikey.
-4. Add the Steam API key (and any other secrets) to Rails credentials via `bin/rails credentials:edit`:
-```yaml
-steam:
-  api_key: <your_api_key_here>
+```bash
+cp .env.example .env
+$EDITOR .env          # four REQUIRED values
+docker compose up -d
 ```
-5. Go to https://dev.maxmind.com/geoip/geoip2/geolite2/ and download the `GeoLite2 City` DB file. Unzip and place in `/doc/`.
-6. Install required libraries for nokogiri [(doc can be found here)](http://www.nokogiri.org/tutorials/installing_nokogiri.html#install_with_included_libraries__recommended_).
-7. Install the required gems: `gem install bundler && bundle install`. You may need development header packages for native extensions (postgres, libmaxminddb, libvips).
-8. Edit the seed data in `db/seeds.rb`, i.e. the servers list.
-9. Set up and migrate the databases: `bin/rails db:setup RAILS_ENV=development`.
-10. Start the webserver: `bin/rails s`.
-11. Add `exec reservation.cfg` to the `server.cfg` of the gameserver.
+
+Docker is the supported way to run this, both halves of it: the site is a
+compose stack, and every game server is a container started for one
+reservation. There is no per-machine game installation to maintain -- the image
+carries the game payload, the Steam Linux Runtime, the rulesets and the agent
+that reports match results to the coordinator.
+
+## What is different from upstream
+
+| | |
+| --- | --- |
+| one game | AppID 5147520, mod directory `tc2`. Nothing branches on "is this a TF2 server?" any more |
+| servers are containers | `docker/frontress-server`, on this machine or on docker hosts added in the admin UI |
+| two rulesets | `frontress_casual` and `frontress_ranked`, from the game repository |
+| matchmaking | the Go coordinator books servers over the API; ranked can only be booked by it |
+| no TF2 leagues | ETF2L/RGL/ozfortress configs, whitelist.tf, logs.tf and demos.tf uploads are gone |
+
+## Running without docker
+
+Possible, and not what this fork is set up for. You need:
+
+* Ruby 4.0+ — install via [mise](https://mise.jdx.dev/). See `.tool-versions` for the exact version.
+* A Steam API key for user sign in (`STEAM_API_KEY`, or `steam.api_key` in credentials)
+* Postgres and Redis
+* [libmaxminddb](https://github.com/maxmind/libmaxminddb) for GeoIP lookups, and ripgrep
+
+```bash
+gem install bundler && bundle install
+bin/rails db:setup
+bin/rails s
+```
+
+Game servers still want to be containers; `FRONTRESS_LOCAL_DOCKER=1` uses the
+docker daemon on the machine Rails runs on.
 
 ### Running the test suite
 `script/test -a` runs the full check: RuboCop, Brakeman, RSpec, import-map verification, Tapioca, and Swagger regeneration.
 
 
 ## Servers
-There's currently no web interface for adding/editing servers (pull requests welcome). So you'll have to enter them manually in the database or using the rails console.
 
+Game servers are containers, started for a reservation and destroyed with it.
+There is nothing to add: with `FRONTRESS_LOCAL_DOCKER=1` this machine hosts
+them, and more capacity means more docker hosts, added under
+`/admin/docker_hosts`. See [docs/FRONTRESS.md](docs/FRONTRESS.md).
 
-Here's how you add a local server:
-```ruby
-LocalServer.create(:name => "Name",
-                   :ip   => "server_ip_or_hostname",
-                   :port => "server_port",
-                   :path => "/absolute/path/on/file/system")
-```
-The local servers should run with the same user as the web application, if you don't like this, use the ssh interface for managing 'remote' servers.
-
-And this is how you add a remote server:
+A server you run and maintain yourself can still be registered by hand:
 
 ```ruby
-SshServer.create(:name => "Name",
-                 :ip   => "server_ip_or_hostname",
-                 :port => "server_port",
-                 :path => "/absolute/path/on/file/system")
+SshServer.create(name: "eu1", ip: "server_ip_or_hostname", port: "27015",
+                 path: "/home/frontress/hlserver")
 ```
 
-The user running the web application needs to be able to ssh to the remote server, you should use passwordless key-based authorization for this, add an entry in ~/.ssh/config for each remote machine.
+`path` is the game root -- the directory containing `tc2/` -- and the user
+running the web application needs passwordless SSH to the machine:
+
 ```
 Host server_ip_or_hostname
   Hostname server_ip_or_hostname
@@ -71,6 +79,22 @@ Host server_ip_or_hostname
 
 ## API
 There's a simple JSON API to create and stop reservations. It typically returns a prefilled JSON response, which you can edit and send to one of the URLs listed in the "actions".
+
+### Matchmaking fields
+
+Three fields turn a reservation into a match, and the game coordinator is the
+client that sets them:
+
+| | |
+| --- | --- |
+| `match_id` | the coordinator's match id. It becomes `sv_tags "tfmm:<id>"` on the server |
+| `match_mode` | `casual` or `ranked` |
+| `match_config` | the ruleset to exec; defaults from the mode |
+
+`find_servers` lists container hosts before machines, so a client that takes
+the first server offered gets a container started for its match. Ranked
+reservations are refused unless the API user is in the Trusted API group --
+see [docs/FRONTRESS.md](docs/FRONTRESS.md).
 
 ### Interactive API Documentation
 **NEW:** Complete interactive Swagger API documentation is now available at:

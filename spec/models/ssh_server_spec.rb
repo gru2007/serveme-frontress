@@ -7,7 +7,7 @@ describe SshServer do
   describe '#remove_configuration' do
     it 'deletes the reservation configs' do
       subject.stub(tf_dir: '/tmp/foo/tf')
-      subject.should_receive(:execute).with('rm -f /tmp/foo/tf/cfg/reservation.cfg /tmp/foo/tf/cfg/ctf_turbine.cfg /tmp/foo/tf/cfg/banned_user.cfg /tmp/foo/tf/cfg/banned_ip.cfg /tmp/foo/tf/motd.txt')
+      subject.should_receive(:execute).with("rm -f /tmp/foo/tf/cfg/reservation.cfg /tmp/foo/tf/cfg/#{Frontress::DEFAULT_MAP}.cfg /tmp/foo/tf/cfg/banned_user.cfg /tmp/foo/tf/cfg/banned_ip.cfg /tmp/foo/tf/motd.txt")
       subject.remove_configuration
     end
   end
@@ -21,17 +21,9 @@ describe SshServer do
   end
 
   describe '#find_process_id' do
-    it 'finds correct pid for regular servers' do
+    it 'finds the pid of the game server, not of the wrappers around it' do
       subject.stub(port: '27015')
-      subject.stub(team_comtress_server?: false)
-      subject.should_receive(:execute).with("ps ux | grep port | grep #{subject.port} | grep srcds_linux | grep -v grep | grep -v ruby | awk '{print $2}'")
-      subject.find_process_id
-    end
-
-    it 'finds correct pid for TC2 servers' do
-      subject.stub(port: '27015')
-      subject.stub(team_comtress_server?: true)
-      subject.should_receive(:execute).with("ps ux | grep port | grep #{subject.port} | grep tc2_linux64 | grep -v srcds_run_64 | grep -v steam-runtime-tools | grep -v grep | grep -v ruby | awk '{print $2}'")
+      subject.should_receive(:execute).with("ps ux | grep port | grep #{subject.port} | grep #{Frontress::SERVER_PROCESS} | grep -v srcds_run_64 | grep -v steam-runtime-tools | grep -v grep | grep -v ruby | awk '{print $2}'")
       subject.find_process_id
     end
   end

@@ -7,20 +7,21 @@ class CloudImageBuildWorker
 
   LOCK_KEY = "cloud_image_build"
   LOCK_TTL = 2.hours
-  DOCKER_DIR = Rails.root.join("docker", "tf2-cloud-server").to_s
-  DOCKERHUB_IMAGE = "serveme/tf2-cloud-server"
-  BASE_IMAGE = "serveme/tf2-base"
-  SOURCEMOD_IMAGE = "serveme/tf2-sourcemod"
-  # Real TF2 versions are 8 digits. Anything smaller means the version lookup
-  # failed upstream, and building would tag a junk image (e.g. ":0").
-  MIN_PLAUSIBLE_VERSION = 1_000_000
+  DOCKER_DIR = Rails.root.join("docker", "frontress-server").to_s
+  IMAGE = T.let(Frontress.server_image_repo, String)
+  BASE_IMAGE = "frontress-base"
+  # A build version is steam.inf's PatchVersion. Anything tiny means the
+  # version lookup failed upstream, and building would tag a junk image (":0").
+  MIN_PLAUSIBLE_VERSION = 1_000
   PUSH_ATTEMPTS = 3
   PUSH_BACKOFF = 15.seconds
 
   def perform(cloud_image_build_id)
     @build = CloudImageBuild.find(cloud_image_build_id)
     return if @build.finished?
-    return unless SITE_HOST == "serveme.tf"
+    # Only the deployment that owns the image builds it. Everywhere else the
+    # image comes from the registry, built by CI.
+    return unless ENV["FRONTRESS_BUILD_IMAGE"].present?
 
     @streamer = CloudImageBuildOutputStreamer.new(@build)
     @lock_held = false
@@ -80,46 +81,32 @@ class CloudImageBuildWorker
   private
 
   def tag
-    "#{DOCKERHUB_IMAGE}:latest"
+    "#{IMAGE}:latest"
   end
 
   def versioned_tag
-    "#{DOCKERHUB_IMAGE}:#{@build.version}"
+    "#{IMAGE}:#{@build.version}"
   end
 
   def build_command
     args = [ "docker", "build" ]
     args << "--pull" if @build.force_pull
-    args.push("--build-arg", "TF2_VERSION=#{@build.version}", "--build-arg", "CACHEBUST=#{@build.id}")
-    # SOURCEMOD_CACHEBUST is only passed on a no_cache build, so the tf2-sourcemod
-    # stage (MetaMod/SourceMod) rebuilds while tf2-base (steamcmd) stays cached.
-    args.push("--build-arg", "SOURCEMOD_CACHEBUST=#{@build.id}") if @build.no_cache
+    args.push("--build-arg", "FRONTRESS_VERSION=#{@build.version}", "--build-arg", "CACHEBUST=#{@build.id}")
     args.push("-t", tag, "-t", versioned_tag, DOCKER_DIR)
     args
   end
 
-  # Cache-preserving builds for the two expensive intermediate stages. Tagging
-  # them keeps their layers out of the dangling-image sweep done by
-  # `docker image prune -f` (DockerHostImagePullWorker), so later builds reuse
-  # the TF2 base (and MetaMod/SourceMod) instead of re-downloading them. A stable
-  # ":latest" tag means a superseded stage (e.g. an old TF2 version) becomes
-  # dangling and is cleaned up by that same prune. Plugins/configs are
-  # deliberately rebuilt every build (CACHEBUST), so they are not tagged.
+  # A cache-preserving build of the expensive base stage. Tagging it keeps its
+  # layers out of the dangling-image sweep done by `docker image prune -f`
+  # (DockerHostImagePullWorker), so later builds reuse the SDK Base runtime
+  # instead of downloading it again. The game payload itself is deliberately
+  # rebuilt every time (CACHEBUST), so it is not tagged.
   def stage_build_commands
     base = [ "docker", "build" ]
     base << "--pull" if @build.force_pull
-    base.push("--target", "tf2-base",
-              "--build-arg", "TF2_VERSION=#{@build.version}",
-              "-t", "#{BASE_IMAGE}:latest", DOCKER_DIR)
+    base.push("--target", "frontress-base", "-t", "#{BASE_IMAGE}:latest", DOCKER_DIR)
 
-    sourcemod = [ "docker", "build" ]
-    sourcemod << "--pull" if @build.force_pull
-    sourcemod.push("--target", "tf2-sourcemod",
-                   "--build-arg", "TF2_VERSION=#{@build.version}")
-    sourcemod.push("--build-arg", "SOURCEMOD_CACHEBUST=#{@build.id}") if @build.no_cache
-    sourcemod.push("-t", "#{SOURCEMOD_IMAGE}:latest", DOCKER_DIR)
-
-    [ base, sourcemod ]
+    [ base ]
   end
 
   def run_phase(phase)
@@ -161,7 +148,7 @@ class CloudImageBuildWorker
 
   def mark_invalid_version
     @build.update!(status: "failed", current_phase: nil, finished_at: Time.current,
-                   output: "[failed] Implausible TF2 version #{@build.version.inspect} - refusing to build")
+                   output: "[failed] Implausible build version #{@build.version.inspect} - refusing to build")
     broadcast_status
   end
 
@@ -180,7 +167,7 @@ class CloudImageBuildWorker
   end
 
   def pushed_digest
-    output, = Open3.capture2e("docker", "inspect", "--format={{index .RepoDigests 0}}", "#{DOCKERHUB_IMAGE}:latest")
+    output, = Open3.capture2e("docker", "inspect", "--format={{index .RepoDigests 0}}", tag)
     digest = output.strip.split("@").last
     digest if digest.present? && digest.start_with?("sha256:")
   rescue StandardError => e

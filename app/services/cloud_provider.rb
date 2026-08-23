@@ -50,7 +50,7 @@ module CloudProvider
       next unless available_to?(provider_name, user)
 
       klass.locations(starts_at: starts_at, ends_at: ends_at).each do |code, info|
-        next unless info[:region] == SITE_REGION || provider_name == "remote_docker" || (provider_name == "docker" && Rails.env.development?)
+        next unless info[:region] == SITE_REGION || provider_name == "remote_docker" || (provider_name == "docker" && Docker.enabled?)
 
         label = if provider_name == "remote_docker"
           "#{info[:name]} (#{info[:hostname]})"

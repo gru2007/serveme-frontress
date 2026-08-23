@@ -14,43 +14,14 @@ class ServerConfigFileWriter
   sig { params(reservation: Reservation).returns(ReservationStatus) }
   def update_configuration(reservation)
     reservation.status_update("Sending reservation config files")
-    [ "reservation.cfg", "ctf_turbine.cfg" ].each do |config_file|
-      config_body = generate_config_file(reservation, config_file)
-      @server.write_configuration(server_config_file(config_file), config_body)
-    end
-    handle_rgl_base_cfg(reservation)
+    @server.write_configuration(server_config_file("reservation.cfg"), generate_config_file(reservation, "reservation.cfg"))
+    # The boot map's own config: a server that starts on the default map and
+    # was asked for another one switches from here.
+    @server.write_configuration(server_config_file("#{Frontress::DEFAULT_MAP}.cfg"), generate_config_file(reservation, "boot_map.cfg"))
     add_motd(reservation)
     write_custom_whitelist(reservation) if reservation.custom_whitelist_id.present?
     write_maplist
     reservation.status_update("Finished sending reservation config files")
-  end
-
-  sig { params(reservation: Reservation).returns(T.untyped) }
-  def handle_rgl_base_cfg(reservation)
-    original_cfg_path = Rails.root.join("doc", "rgl_base.cfg")
-    content = File.read(original_cfg_path)
-
-    case reservation.democheck_mode
-    when "warn"
-      modified_content = content.gsub("sm_democheck_warn 0", "sm_democheck_warn 1")
-      @server.write_configuration(server_config_file("rgl_base.cfg"), modified_content)
-    when "disable"
-      modified_content = content
-        .gsub("sm_democheck_enabled 1", "sm_democheck_enabled 0")
-        .gsub("sm_democheck_announce 1", "sm_democheck_announce 0")
-      @server.write_configuration(server_config_file("rgl_base.cfg"), modified_content)
-    else
-      @server.write_configuration(server_config_file("rgl_base.cfg"), content)
-    end
-    true
-  end
-
-  sig { returns(T.untyped) }
-  def restore_rgl_base_cfg
-    original_cfg_path = Rails.root.join("doc", "rgl_base.cfg")
-    content = File.read(original_cfg_path)
-    @server.write_configuration(server_config_file("rgl_base.cfg"), content)
-    true
   end
 
   sig { void }

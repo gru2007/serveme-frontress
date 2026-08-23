@@ -24,6 +24,8 @@ module Api
       @reservation = new_reservation
       @servers = free_servers.where(sdr: false)
       @docker_hosts = free_docker_hosts
+      @local_docker = CloudProvider::Docker.available_during?(@reservation.starts_at || Time.current,
+                                                              @reservation.ends_at || 2.hours.from_now)
       render :find_servers
     end
 
@@ -37,8 +39,10 @@ module Api
 
       server_id = reservation_params[:server_id]
 
-      if server_id.present? && DockerHost.docker_host_id?(server_id)
-        create_docker_host_reservation(server_id)
+      if server_id.present? && CloudProvider::Docker.local_server_id?(server_id)
+        create_container_reservation(nil)
+      elsif server_id.present? && DockerHost.docker_host_id?(server_id)
+        create_container_reservation(server_id.to_i - DockerHost::VIRTUAL_ID_OFFSET)
       else
         create_regular_reservation
       end
@@ -160,8 +164,8 @@ module Api
       end
     end
 
-    def create_docker_host_reservation(virtual_server_id)
-      docker_host_id = virtual_server_id.to_i - DockerHost::VIRTUAL_ID_OFFSET
+    # docker_host_id nil means this machine's own docker daemon.
+    def create_container_reservation(docker_host_id)
       creator = DockerHostReservationCreator.new(
         user: current_user,
         docker_host_id: docker_host_id,
@@ -178,7 +182,7 @@ module Api
     end
 
     def reservation_params
-      params.require(:reservation).permit(:starts_at, :ends_at, :server_id, :rcon, :password, :first_map, :tv_password, :tv_relaypassword, :server_config_id, :whitelist_id, :custom_whitelist_id, :auto_end, :enable_plugins, :enable_demos_tf, :democheck_mode)
+      params.require(:reservation).permit(:starts_at, :ends_at, :server_id, :rcon, :password, :first_map, :tv_password, :tv_relaypassword, :server_config_id, :whitelist_id, :custom_whitelist_id, :auto_end, :enable_plugins, :enable_demos_tf, :democheck_mode, :start_instantly, :match_id, :match_mode, :match_config)
     end
 
     def map_legacy_democheck_param

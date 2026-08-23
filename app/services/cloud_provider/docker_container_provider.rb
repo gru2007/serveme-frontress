@@ -20,7 +20,20 @@ module CloudProvider
 
     sig { overridable.returns(String) }
     def docker_image
-      "tf2-cloud-server"
+      Frontress::SERVER_IMAGE
+    end
+
+    # The seccomp profile srcds needs. A host set up by DockerHostSetupService
+    # has it; a laptop running `docker compose up` does not, and docker refuses
+    # to start a container whose profile file is missing. So it is used when it
+    # is there and skipped when it is not, rather than being a step every
+    # machine has to be prepared with -- which is the whole point of the
+    # docker-first deployment.
+    SECCOMP_PROFILE = "/etc/docker/seccomp-tf2.json"
+
+    sig { returns(T::Boolean) }
+    def seccomp_profile?
+      File.exist?(SECCOMP_PROFILE)
     end
 
     # Argv for local exec: each element is one argv slot, no shell escaping.
@@ -28,7 +41,7 @@ module CloudProvider
     def docker_run_argv(cloud_server)
       [
         "docker", "run", "-d", "--net=host",
-        "--security-opt", "seccomp=/etc/docker/seccomp-tf2.json",
+        *(seccomp_profile? ? [ "--security-opt", "seccomp=#{SECCOMP_PROFILE}" ] : []),
         "--name", container_name(cloud_server),
         *ContainerEnv.to_argv_pairs(env_hash(cloud_server)),
         docker_image
@@ -41,7 +54,9 @@ module CloudProvider
     def docker_run_command(cloud_server)
       parts = [
         "docker run -d --net=host",
-        "--security-opt seccomp=/etc/docker/seccomp-tf2.json",
+        # Remote hosts are provisioned by DockerHostSetupService, which writes
+        # the profile, so this one stays unconditional.
+        "--security-opt seccomp=#{SECCOMP_PROFILE}",
         "--name #{Shellwords.shellescape(container_name(cloud_server))}",
         *ContainerEnv.to_shell_args(env_hash(cloud_server)),
         docker_image

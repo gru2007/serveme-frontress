@@ -135,10 +135,10 @@ RUN apt-get update -qq && \
       ripgrep && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
-# Docker CLI — CloudImageBuildWorker (EU only) shells out to `docker build`
-# and `docker push` to rebuild the tf2-cloud-server image, talking to the host
-# daemon over a bind-mounted /var/run/docker.sock. CLI binary only, no daemon;
-# pinned to the EU host's Docker version.
+# Docker CLI — the app starts game server containers on the host's daemon over
+# a bind-mounted /var/run/docker.sock (CloudProvider::Docker), and can rebuild
+# the game server image with it (CloudImageBuildWorker). CLI binary only, no
+# daemon.
 ARG DOCKER_CLI_VERSION=29.4.2
 RUN curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz" \
     | tar -xzC /usr/local/bin --strip-components=1 docker/docker

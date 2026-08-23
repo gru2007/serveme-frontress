@@ -110,7 +110,6 @@ describe CloudServer do
   describe '#find_process_id' do
     it 'finds correct pid for regular servers' do
       subject.stub(port: '27015')
-      subject.stub(team_comtress_server?: false)
       subject.should_receive(:execute).with("ps ux | grep port | grep #{subject.port} | grep srcds_linux | grep -v grep | grep -v ruby | awk '{print $2}'")
       subject.find_process_id
     end

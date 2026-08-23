@@ -21,7 +21,7 @@ describe LogWorker do
   let(:who_line)              { '1234567L 03/29/2014 - 13:15:53: "Troll<3><[U:1:12345]><Red>" say "!who"' }
   let(:who_troll)             { '1234567L 03/29/2014 - 19:15:53: "BindTroll<3><[U:1:12344]><Red>" say "!who is the best"' }
   let(:sdr_line)              { '1234567L 03/29/2014 - 13:15:53: "Arie - serveme.tf<3><[U:1:231702]><Red>" say "!sdr"' }
-  let(:turbine_start_line)    { '1234567L 02/07/2015 - 20:39:40: Started map "ctf_turbine" (CRC "a7e226a1ff6dd4b8d546d7d341d446dc")' }
+  let(:boot_map_start_line)   { %(1234567L 02/07/2015 - 20:39:40: Started map "#{Frontress::DEFAULT_MAP}" (CRC "a7e226a1ff6dd4b8d546d7d341d446dc")) }
   let(:badlands_start_line)   { '1234567L 02/07/2015 - 20:39:40: Started map "cp_badlands" (CRC "a7e226a1ff6dd4b8d546d7d341d446dc")' }
   let(:connect_normal)        { '1234567L 03/29/2014 - 13:15:53: "Normal<3><[U:1:12345]><>" connected, address "1.128.0.1:1234"' }
   let(:connect_banned_ip)     { '1234567L 03/29/2014 - 13:15:53: "Troll<3><[U:1:12345]><>" connected, address "109.81.174.1:1234"' }
@@ -136,9 +136,9 @@ describe LogWorker do
   end
 
   describe 'recognizing server start' do
-    context 'turbine' do
+    context 'the boot map' do
       it 'saves a status indicating the server started and will change again' do
-        LogWorker.perform_async(turbine_start_line)
+        LogWorker.perform_async(boot_map_start_line)
         ReservationStatus.last.status.should include('switching map')
       end
     end

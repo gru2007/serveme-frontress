@@ -1,0 +1,14 @@
+// Executed when the server boots into the default map. A server that was
+// asked for another one changes to it here; a cloud server is told its first
+// map before it starts and never runs this.
+sv_logsecret "<%= logsecret %>"
+tv_delaymapchange 1
+tv_enable 1
+tv_autorecord 0
+tv_maxrate 0
+tv_snapshotrate 66
+net_disconnect_reason 1
+<% if !server.cloud? && first_map.present? && first_map != Frontress::DEFAULT_MAP %>
+changelevel <%= first_map %>
+<% end %>
+

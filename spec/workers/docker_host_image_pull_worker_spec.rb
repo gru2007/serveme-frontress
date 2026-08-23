@@ -33,7 +33,7 @@ describe DockerHostImagePullWorker do
 
         ssh = instance_double(Net::SSH::Connection::Session)
         allow(Net::SSH).to receive(:start).and_yield(ssh)
-        allow(ssh).to receive(:exec!).and_return("Status: Image is up to date for serveme/tf2-cloud-server:latest")
+        allow(ssh).to receive(:exec!).and_return("Status: Image is up to date for #{Frontress::SERVER_IMAGE}")
 
         worker.perform(host.id)
 
@@ -71,7 +71,7 @@ describe DockerHostImagePullWorker do
 
         expect(ssh).not_to have_received(:exec!).with("docker image prune -f")
         expect(ssh).to have_received(:exec!).with("docker image prune -f --filter until=168h")
-        expect(ssh).to have_received(:exec!).with(/docker rmi serveme\/tf2-cloud-server/)
+        expect(ssh).to have_received(:exec!).with(/docker rmi #{Regexp.escape(Frontress.server_image_repo)}/)
       end
     end
   end

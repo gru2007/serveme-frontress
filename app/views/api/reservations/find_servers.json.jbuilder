@@ -6,8 +6,19 @@ end
 json.actions do
   json.create api_reservations_url
 end
-json.servers(@servers.to_a + (@docker_hosts || []).to_a) do |item|
-  if item.is_a?(DockerHost)
+# Container hosts come first, and that order is load-bearing: the coordinator
+# takes the first server it is offered unless it is told otherwise, and a
+# container started for one match is what this site is for.
+json.servers((@local_docker ? [ :local_docker ] : []) + (@docker_hosts || []).to_a + @servers.to_a) do |item|
+  if item == :local_docker
+    json.id CloudProvider::Docker::LOCAL_VIRTUAL_SERVER_ID
+    json.name "Local (Docker)"
+    json.flag "eu"
+    json.ip SITE_HOST
+    json.port "27015"
+    json.ip_and_port "#{SITE_HOST}:27015"
+    json.sdr false
+  elsif item.is_a?(DockerHost)
     json.id item.virtual_server_id
     json.name "#{item.city} (Docker)"
     json.flag item.location&.flag

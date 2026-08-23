@@ -26,6 +26,7 @@ module ReservationValidations
       validates_with Reservations::MapIsValidValidator
       validates_with Reservations::CustomWhitelistValidator
       validates_with Reservations::PasswordValidator, fields: %i[password tv_password tv_relaypassword rcon]
+      validates_with Reservations::MatchValidator
       validate :enable_plugins_when_demos_tf_enabled
 
       define_method(:check_server_available?) do ||

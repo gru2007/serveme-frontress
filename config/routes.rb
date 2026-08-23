@@ -255,9 +255,6 @@ Serveme::Application.routes.draw do
   get   "/server-monitoring",             to: "server_monitoring#index",   as: "server_monitoring"
   post  "/server-monitoring/poll",        to: "server_monitoring#poll",    as: "poll_server_monitoring"
 
-  get   "/tc2",                           to: "pages#comtress",            as: "comtress"
-  post  "/tc2",                           to: "pages#comtress"
-
   get   "/cloud",                         to: "pages#cloud_info",          as: "cloud_info"
   post  "/cloud",                         to: "pages#cloud_info"
 

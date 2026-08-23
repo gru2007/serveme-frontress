@@ -48,6 +48,21 @@ x-app: &app
     SITE_HOST: ${SITE_HOST:-localhost}
     MAPS_DIR: ${MAPS_DIR:-/rails/tmp/maps}
     SENTRY_DSN: ${SENTRY_DSN:-}
+    # Game servers. They are containers, started on this machine's docker
+    # daemon (FRONTRESS_LOCAL_DOCKER) or on a remote docker host over SSH.
+    FRONTRESS_SERVER_IMAGE: ${FRONTRESS_SERVER_IMAGE:-ghcr.io/gru2007/frontress-server:latest}
+    FRONTRESS_LOCAL_DOCKER: ${FRONTRESS_LOCAL_DOCKER:-}
+    FRONTRESS_LOCAL_DOCKER_MAX_CONTAINERS: ${FRONTRESS_LOCAL_DOCKER_MAX_CONTAINERS:-4}
+    FRONTRESS_SERVER_VERSION: ${FRONTRESS_SERVER_VERSION:-}
+    FRONTRESS_FASTDL_URL: ${FRONTRESS_FASTDL_URL:-}
+    FRONTRESS_DEFAULT_MAP: ${FRONTRESS_DEFAULT_MAP:-koth_product_final}
+    # A container is on the host's network, so it cannot reach this app on a
+    # compose-internal name. These are how it gets back to us.
+    DOCKER_HOST_IP: ${DOCKER_HOST_IP:-}
+    CLOUD_CALLBACK_HOST: ${CLOUD_CALLBACK_HOST:-}
+    # The matchmaking coordinator.
+    FRONTRESS_COORDINATOR_URL: ${FRONTRESS_COORDINATOR_URL:-}
+    FRONTRESS_COORDINATOR_SECRET: ${FRONTRESS_COORDINATOR_SECRET:-}
   volumes: &app-volumes
     # Uploads and logs outlive containers; maps are a cache but re-downloading
     # a few gigabytes on every restart is not a cache.
@@ -56,12 +71,25 @@ x-app: &app
     - server_logs:/rails/server_logs
     - rails_logs:/rails/log
     - maps:/rails/tmp/maps
-    # doc/ holds runtime data the app reads -- the SourceMod plugins it
-    # uploads to servers, the ban and VPN lists -- plus the GeoIP databases,
-    # which are gitignored. Bound read-write so `rails maxmind:fetch` can
-    # write them. Without the GeoIP files, IP geolocation is the only thing
-    # that stops working.
+    # doc/ holds runtime data the app reads -- the ban and VPN lists -- plus
+    # the GeoIP databases, which are gitignored. Bound read-write so
+    # `rails maxmind:fetch` can write them. Without the GeoIP files, IP
+    # geolocation is the only thing that stops working.
     - ./doc:/rails/doc
+    # The docker socket, so this app can start game server containers on the
+    # machine it runs on. That is the default deployment: one box, one
+    # `docker compose up`, and game servers as containers beside the site.
+    #
+    # It is real access to the host's docker daemon, which is real privilege.
+    # Comment it out if game servers only ever run on separate hosts, and set
+    # FRONTRESS_LOCAL_DOCKER= (empty) to match.
+    - /var/run/docker.sock:/var/run/docker.sock
+  # The docker socket is owned by the host's docker group, and this container
+  # runs as an unprivileged user. DOCKER_GID is that group's id on the host
+  # (`getent group docker | cut -d: -f3`); the default is what Debian and
+  # Ubuntu usually pick.
+  group_add:
+    - "${DOCKER_GID:-999}"
   networks:
     - serveme
 

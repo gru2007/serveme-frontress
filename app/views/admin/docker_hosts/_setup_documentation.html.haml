@@ -152,7 +152,7 @@
           %dt.col-sm-3 SSL Verification
           %dd.col-sm-9 Hits <code>https://hostname/ping</code>. Caddy auto-issues via HTTP-01 (or falls back to TLS-ALPN-01); first cert can take a minute. If it fails the first time, wait 60s and retry.
           %dt.col-sm-3 Pull Docker Image
-          %dd.col-sm-9 <code>docker pull serveme/tf2-cloud-server:latest</code>. Marks the host <code>ready</code>.
+          %dd.col-sm-9 <code>docker pull #{Frontress::SERVER_IMAGE}</code>. Marks the host <code>ready</code>.
 
     %details.mb-2
       %summary.small

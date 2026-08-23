@@ -35,7 +35,10 @@ module SshExecution
 
   sig { returns(T.nilable(String)) }
   def find_process_id
-    process_name = team_comtress_server? ? "tc2_linux64 | grep -v srcds_run_64 | grep -v steam-runtime-tools" : "srcds_linux"
+    # Every server in this fork is a Frontress server, so there is nothing to
+    # branch on: the process is the launcher, and the two wrappers around it
+    # have to be filtered out or every server looks like three.
+    process_name = "#{Frontress::SERVER_PROCESS} | grep -v srcds_run_64 | grep -v steam-runtime-tools"
     execute("ps ux | grep port | grep #{port.to_s.shellescape} | grep #{process_name} | grep -v grep | grep -v ruby | awk '{print $2}'")
   end
 

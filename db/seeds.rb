@@ -8,38 +8,18 @@
 #   cities = City.create([{ name: 'Chicago' }, { name: 'Copenhagen' }])
 #   Mayor.create(name: 'Emanuel', city: cities.first)
 #
-unless Server.all.any?
-  fb1 = { name: 'FakkelBrigade #1',
-          path: '/home/tf2/tf2-1',
-          ip: 'fakkelbrigade.eu',
-          port: '27015',
-          rcon: 'secret',
-          latitude: 51,
-          longitude: 9 }
-  fb2 = { name: 'FakkelBrigade #2',
-          path: '/home/tf2/tf2-2',
-          ip: 'fakkelbrigade.eu',
-          port: '27025',
-          rcon: 'secret',
-          latitude: 51,
-          longitude: 9 }
-  fb4 = { name: 'FakkelBrigade #4',
-          path: '/home/tf2/tf2-4',
-          ip: 'fakkelbrigade.eu',
-          port: '27045',
-          rcon: 'secret',
-          latitude: 51,
-          longitude: 9 }
-  servers = [ fb1, fb2, fb4 ]
-
-  servers.each do |server|
-    LocalServer.where(name: server[:name], path: server[:path], ip: server[:ip], port: server[:port], rcon: server[:rcon], latitude: server[:latitude], longitude: server[:longitude]).first_or_create
-  end
-  puts "Seeded servers #{servers.join(', ')}" unless Rails.env.test?
-end
+# No servers are seeded.
+#
+# Game servers in this fork are containers started per reservation, so there is
+# nothing to list here: with FRONTRESS_LOCAL_DOCKER=1 this machine can host
+# them, and remote docker hosts are added under /admin/docker_hosts. A server
+# you run yourself can still be added by hand -- see docs/DOCKER.md.
 
 unless ServerConfig.all.any?
-  configs = %w[etf2l etf2l_6v6 etf2l_9v9 etf2l_6v6_5cp etf2l_6v6_ctf etf2l_6v6_stopwatch etf2l_9v9_5cp etf2l_9v9_ctf etf2l_9v9_koth etf2l_9v9_stopwatch etf2l_ultiduo etf2l_bball ugc_HL_ctf ugc_HL_koth ugc_HL_standard ugc_HL_stopwatch ugc_HL_tugofwar]
+  # The rulesets a reservation can ask for. They are file names on the game
+  # server (game/tc2/cfg in the game repository, baked into the container
+  # image), and the coordinator names the same two for its match groups.
+  configs = %w[frontress_casual frontress_ranked frontress_match]
   configs.each do |config|
     ServerConfig.create(file: config)
   end
@@ -47,7 +27,9 @@ unless ServerConfig.all.any?
 end
 
 unless Whitelist.all.any?
-  whitelists = [ 'etf2l_whitelist_6thcup.txt', 'etf2l_whitelist_6v6.txt', 'etf2l_whitelist_9v9.txt', 'etf2l_whitelist_bball.txt', 'etf2l_whitelist_quickfix.txt', 'etf2l_whitelist_vanilla.txt', 'item_whitelist_ugc_HL.txt' ]
+  # The only weapon whitelist that ships with the game. Ranked execs it itself;
+  # this row is for a reservation that wants to run it without being a match.
+  whitelists = [ 'whitelist_competitive.txt' ]
   whitelists.each do |whitelist|
     Whitelist.create(file: whitelist)
   end

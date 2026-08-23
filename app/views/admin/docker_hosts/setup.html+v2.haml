@@ -56,7 +56,7 @@
     - step_number += 1
     = render partial: "admin/docker_hosts/setup_step", locals: { docker_host: @docker_host, key: "ssl", title: "#{step_number}. SSL Verification", icon: "fa-lock", description: "Verify HTTPS is working on #{@docker_host.hostname} (Caddy auto-provisions Let's Encrypt cert)" }
     - step_number += 1
-    = render partial: "admin/docker_hosts/setup_step", locals: { docker_host: @docker_host, key: "pull_image", title: "#{step_number}. Pull Docker Image", icon: "fa-download", description: "Pull serveme/tf2-cloud-server:latest and mark host as ready" }
+    = render partial: "admin/docker_hosts/setup_step", locals: { docker_host: @docker_host, key: "pull_image", title: "#{step_number}. Pull Docker Image", icon: "fa-download", description: "Pull #{Frontress::SERVER_IMAGE} and mark host as ready" }
 
   %div
     = render partial: "admin/docker_hosts/setup_logs", locals: { docker_host: @docker_host }

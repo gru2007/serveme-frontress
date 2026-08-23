@@ -22,6 +22,8 @@ describe CloudImageBuildWorker do
 
   before do
     stub_const("SITE_HOST", "serveme.tf")
+    # Only the deployment that owns the image builds it.
+    stub_const("ENV", ENV.to_h.merge("FRONTRESS_BUILD_IMAGE" => "1"))
     allow(Sidekiq).to receive(:redis).and_yield(redis)
     allow(redis).to receive(:set).and_return(true)
     allow(redis).to receive(:del)
@@ -29,12 +31,11 @@ describe CloudImageBuildWorker do
     allow(Turbo::StreamsChannel).to receive(:broadcast_append_to)
     allow(Turbo::StreamsChannel).to receive(:broadcast_replace_to)
     allow(DockerHostImagePullWorker).to receive(:perform_async)
-    stub_streamed_command([ "docker", "build", "--target", "tf2-base", "--build-arg", "TF2_VERSION=#{version}", "-t", "serveme/tf2-base:latest", CloudImageBuildWorker::DOCKER_DIR ], success_status, "base stage line\n")
-    stub_streamed_command([ "docker", "build", "--target", "tf2-sourcemod", "--build-arg", "TF2_VERSION=#{version}", "-t", "serveme/tf2-sourcemod:latest", CloudImageBuildWorker::DOCKER_DIR ], success_status, "sourcemod stage line\n")
-    stub_streamed_command([ "docker", "build", "--build-arg", "TF2_VERSION=#{version}", "--build-arg", "CACHEBUST=#{build.id}", "-t", "serveme/tf2-cloud-server:latest", "-t", "serveme/tf2-cloud-server:#{version}", CloudImageBuildWorker::DOCKER_DIR ], success_status, "build line\n")
-    stub_streamed_command([ "docker", "push", "serveme/tf2-cloud-server:latest" ], success_status, "push line\n")
-    stub_streamed_command([ "docker", "push", "serveme/tf2-cloud-server:#{version}" ], success_status, "push version line\n")
-    allow(Open3).to receive(:capture2e).with("docker", "inspect", anything, anything).and_return([ "serveme/tf2-cloud-server@sha256:newdigest\n", success_status ])
+    stub_streamed_command([ "docker", "build", "--target", "frontress-base", "-t", "frontress-base:latest", CloudImageBuildWorker::DOCKER_DIR ], success_status, "base stage line\n")
+    stub_streamed_command([ "docker", "build", "--build-arg", "FRONTRESS_VERSION=#{version}", "--build-arg", "CACHEBUST=#{build.id}", "-t", "#{CloudImageBuildWorker::IMAGE}:latest", "-t", "#{CloudImageBuildWorker::IMAGE}:#{version}", CloudImageBuildWorker::DOCKER_DIR ], success_status, "build line\n")
+    stub_streamed_command([ "docker", "push", "#{CloudImageBuildWorker::IMAGE}:latest" ], success_status, "push line\n")
+    stub_streamed_command([ "docker", "push", "#{CloudImageBuildWorker::IMAGE}:#{version}" ], success_status, "push version line\n")
+    allow(Open3).to receive(:capture2e).with("docker", "inspect", anything, anything).and_return([ "#{CloudImageBuildWorker::IMAGE}@sha256:newdigest\n", success_status ])
   end
 
   describe "#perform" do
@@ -56,47 +57,11 @@ describe CloudImageBuildWorker do
 
     it "passes --pull when force_pull is true" do
       build.update!(force_pull: true)
-      stub_streamed_command([ "docker", "build", "--pull", "--target", "tf2-base", "--build-arg", "TF2_VERSION=#{version}", "-t", "serveme/tf2-base:latest", CloudImageBuildWorker::DOCKER_DIR ], success_status, "")
-      stub_streamed_command([ "docker", "build", "--pull", "--target", "tf2-sourcemod", "--build-arg", "TF2_VERSION=#{version}", "-t", "serveme/tf2-sourcemod:latest", CloudImageBuildWorker::DOCKER_DIR ], success_status, "")
-      stub_streamed_command([ "docker", "build", "--pull", "--build-arg", "TF2_VERSION=#{version}", "--build-arg", "CACHEBUST=#{build.id}", "-t", "serveme/tf2-cloud-server:latest", "-t", "serveme/tf2-cloud-server:#{version}", CloudImageBuildWorker::DOCKER_DIR ], success_status, "")
+      stub_streamed_command([ "docker", "build", "--pull", "--target", "frontress-base", "-t", "frontress-base:latest", CloudImageBuildWorker::DOCKER_DIR ], success_status, "")
+      stub_streamed_command([ "docker", "build", "--pull", "--build-arg", "FRONTRESS_VERSION=#{version}", "--build-arg", "CACHEBUST=#{build.id}", "-t", "#{CloudImageBuildWorker::IMAGE}:latest", "-t", "#{CloudImageBuildWorker::IMAGE}:#{version}", CloudImageBuildWorker::DOCKER_DIR ], success_status, "")
 
       worker.perform(build.id)
       expect(build.reload.status).to eq("succeeded")
-    end
-
-    it "passes SOURCEMOD_CACHEBUST (rebuilding sourcemod, keeping the TF2 base cached) when no_cache is true" do
-      build.update!(no_cache: true)
-      stub_streamed_command([ "docker", "build", "--target", "tf2-sourcemod", "--build-arg", "TF2_VERSION=#{version}", "--build-arg", "SOURCEMOD_CACHEBUST=#{build.id}", "-t", "serveme/tf2-sourcemod:latest", CloudImageBuildWorker::DOCKER_DIR ], success_status, "")
-      stub_streamed_command([ "docker", "build", "--build-arg", "TF2_VERSION=#{version}", "--build-arg", "CACHEBUST=#{build.id}", "--build-arg", "SOURCEMOD_CACHEBUST=#{build.id}", "-t", "serveme/tf2-cloud-server:latest", "-t", "serveme/tf2-cloud-server:#{version}", CloudImageBuildWorker::DOCKER_DIR ], success_status, "")
-
-      worker.perform(build.id)
-
-      expect(build.reload.status).to eq("succeeded")
-      expect(Open3).to have_received(:popen2e).with(
-        "docker", "build",
-        "--build-arg", "TF2_VERSION=#{version}", "--build-arg", "CACHEBUST=#{build.id}",
-        "--build-arg", "SOURCEMOD_CACHEBUST=#{build.id}",
-        "-t", "serveme/tf2-cloud-server:latest",
-        "-t", "serveme/tf2-cloud-server:#{version}",
-        CloudImageBuildWorker::DOCKER_DIR
-      )
-      # the sourcemod stage is rebuilt+retagged too, so its cache survives the prune
-      expect(Open3).to have_received(:popen2e).with(
-        "docker", "build", "--target", "tf2-sourcemod",
-        "--build-arg", "TF2_VERSION=#{version}", "--build-arg", "SOURCEMOD_CACHEBUST=#{build.id}",
-        "-t", "serveme/tf2-sourcemod:latest", CloudImageBuildWorker::DOCKER_DIR
-      )
-    end
-
-    it "does not pass SOURCEMOD_CACHEBUST on a normal build (keeps sourcemod cached)" do
-      worker.perform(build.id)
-
-      expect(Open3).to have_received(:popen2e).with(
-        "docker", "build", "--build-arg", "TF2_VERSION=#{version}", "--build-arg", "CACHEBUST=#{build.id}",
-        "-t", "serveme/tf2-cloud-server:latest",
-        "-t", "serveme/tf2-cloud-server:#{version}",
-        CloudImageBuildWorker::DOCKER_DIR
-      )
     end
 
     it "is idempotent: skips already-finished builds" do
@@ -120,7 +85,7 @@ describe CloudImageBuildWorker do
     end
 
     it "marks build as failed and records exception output when docker build fails" do
-      stub_streamed_command([ "docker", "build", "--build-arg", "TF2_VERSION=#{version}", "--build-arg", "CACHEBUST=#{build.id}", "-t", "serveme/tf2-cloud-server:latest", "-t", "serveme/tf2-cloud-server:#{version}", CloudImageBuildWorker::DOCKER_DIR ], failure_status, "Error! App state\n")
+      stub_streamed_command([ "docker", "build", "--build-arg", "FRONTRESS_VERSION=#{version}", "--build-arg", "CACHEBUST=#{build.id}", "-t", "#{CloudImageBuildWorker::IMAGE}:latest", "-t", "#{CloudImageBuildWorker::IMAGE}:#{version}", CloudImageBuildWorker::DOCKER_DIR ], failure_status, "Error! App state\n")
 
       expect { worker.perform(build.id) }.not_to raise_error
 
@@ -145,38 +110,32 @@ describe CloudImageBuildWorker do
       expect(SiteSetting.get(DockerImagePollWorker::DIGEST_SETTING_KEY)).to eq("sha256:newdigest")
     end
 
-    it "tags the image with the TF2 version alongside latest" do
+    it "tags the image with the build version alongside latest" do
       worker.perform(build.id)
       expect(Open3).to have_received(:popen2e).with(
-        "docker", "build", "--build-arg", "TF2_VERSION=#{version}", "--build-arg", "CACHEBUST=#{build.id}",
-        "-t", "serveme/tf2-cloud-server:latest",
-        "-t", "serveme/tf2-cloud-server:#{version}",
+        "docker", "build", "--build-arg", "FRONTRESS_VERSION=#{version}", "--build-arg", "CACHEBUST=#{build.id}",
+        "-t", "#{CloudImageBuildWorker::IMAGE}:latest",
+        "-t", "#{CloudImageBuildWorker::IMAGE}:#{version}",
         CloudImageBuildWorker::DOCKER_DIR
       )
     end
 
-    it "builds and tags the intermediate stages so their cache survives the post-build prune" do
+    it "builds and tags the base stage so its cache survives the post-build prune" do
       worker.perform(build.id)
 
       expect(Open3).to have_received(:popen2e).with(
-        "docker", "build", "--target", "tf2-base",
-        "--build-arg", "TF2_VERSION=#{version}",
-        "-t", "serveme/tf2-base:latest", CloudImageBuildWorker::DOCKER_DIR
-      )
-      expect(Open3).to have_received(:popen2e).with(
-        "docker", "build", "--target", "tf2-sourcemod",
-        "--build-arg", "TF2_VERSION=#{version}",
-        "-t", "serveme/tf2-sourcemod:latest", CloudImageBuildWorker::DOCKER_DIR
+        "docker", "build", "--target", "frontress-base",
+        "-t", "frontress-base:latest", CloudImageBuildWorker::DOCKER_DIR
       )
     end
 
     it "pushes both the latest and version-specific tags" do
       worker.perform(build.id)
-      expect(Open3).to have_received(:popen2e).with("docker", "push", "serveme/tf2-cloud-server:latest")
-      expect(Open3).to have_received(:popen2e).with("docker", "push", "serveme/tf2-cloud-server:#{version}")
+      expect(Open3).to have_received(:popen2e).with("docker", "push", "#{CloudImageBuildWorker::IMAGE}:latest")
+      expect(Open3).to have_received(:popen2e).with("docker", "push", "#{CloudImageBuildWorker::IMAGE}:#{version}")
     end
 
-    it "records the built TF2 version in SiteSetting on success" do
+    it "records the built version in SiteSetting on success" do
       worker.perform(build.id)
       expect(SiteSetting.get(DockerImageReadiness::VERSION_SETTING_KEY)).to eq(version)
     end
@@ -262,7 +221,7 @@ describe CloudImageBuildWorker do
 
     it "retries a failed docker push and succeeds" do
       allow(worker).to receive(:sleep)
-      push = [ "docker", "push", "serveme/tf2-cloud-server:latest" ]
+      push = [ "docker", "push", "#{CloudImageBuildWorker::IMAGE}:latest" ]
       call = 0
       allow(Open3).to receive(:popen2e).with(*push) do |*_args, &blk|
         call += 1
@@ -278,7 +237,7 @@ describe CloudImageBuildWorker do
 
     it "gives up after the push retry budget is exhausted" do
       allow(worker).to receive(:sleep)
-      stub_streamed_command([ "docker", "push", "serveme/tf2-cloud-server:latest" ], failure_status, "push down\n")
+      stub_streamed_command([ "docker", "push", "#{CloudImageBuildWorker::IMAGE}:latest" ], failure_status, "push down\n")
 
       expect { worker.perform(build.id) }.not_to raise_error
 

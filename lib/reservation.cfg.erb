@@ -1,17 +1,40 @@
+<%#
+  The config every reserved server execs.
+
+  It is written before the server starts (cloud) or pushed and exec'd over
+  RCON (local and ssh servers), so it is the only thing that reaches a server
+  between "somebody booked it" and "somebody is playing on it".
+
+  Two things changed from upstream serveme. Everything TF2-league-specific is
+  gone -- logs.tf, demos.tf, TFTrue, the whitelist services, the SourceMod
+  plugins the fork does not ship -- because none of it exists for Frontress.
+  And a reservation the coordinator made carries a match: the match id becomes
+  sv_tags, which is how the agent knows which match it is reporting, and the
+  ruleset is exec'd at the end so it wins over anything above it.
+%>
 <% if server.sdr? %>
 <%= %{alias ip} %>
 <%= %{alias hostip} %>
 <% end %>
-alias sm_testdiscord
 
+<% if matchmaking? %>
+<%= %{hostname "#{SITE_HOST} | #{match_mode} #{match_id}"} %>
+<% else %>
 <%= %{hostname "#{SITE_HOST} ##{id}"} %>
+<% end %>
 rcon_password "<%= source_engine_escape(rcon) %>"
 sv_password "<%= source_engine_escape(password) %>"
 tv_password "<%= source_engine_escape(tv_password) %>"
 tv_relaypassword "<%= source_engine_escape(tv_relaypassword) %>"
+
+// Logs. The site's log daemon reads these; on a matchmaking reservation the
+// agent in the container reads them too, and adds itself with logaddress_add.
+log on
 sv_logflush 0
 sv_logbans 1
+sv_logecho 1
 logaddress_add <%= "direct.#{SITE_HOST}:40001" %>
+
 sv_rcon_whitelist_address "<%= whitelist_ip %>"
 sv_rcon_minfailuretime 1
 sv_rcon_minfailures 20
@@ -20,58 +43,32 @@ sv_rcon_banpenalty 1
 sv_quota_stringcmdspersecond 200
 sv_max_queries_sec_global 60
 
-sv_downloadurl "https://fastdl.serveme.tf"
-
-<%= %{logstf_title "#{SITE_HOST} ##{id} {blu} vs {red}"} %>
-
-<% if user.logs_tf_api_key.present? %>
-<%= %{logstf_apikey "#{user.logs_tf_api_key}"} %>
-<% else %>
-<%= %{logstf_apikey "#{Rails.application.credentials.dig(:logs_tf, :api_key)}"} %>
-<% end %>
-logstf_https 1
-
-<% if enable_demos_tf? %>
-<% if user.demos_tf_api_key.present? %>
-<%= %{sm_demostf_apikey "#{user.demos_tf_api_key}"} %>
-<% else %>
-<%= %{sm_demostf_apikey "#{Rails.application.credentials.dig(:demos_tf, :api_key)}"} %>
-<% end %>
-<% end %>
-
-<% if enable_plugins? %>
-<%= %{stac_work_with_sv_cheats "1"} %>
-<%= %{sm_web_rcon_url "#{SITE_URL}/reservations/#{id}/rcon"}%>
-<%= "sm_reloadadmins" %>
-<% end %>
-
-tf_preround_push_from_damage_enable 1
-
-tf_birthday 0
-tf_birthday_ball_chance 0
-
-sm_democheck_enabled 0
-
-<% if server_config %>
-<%= "exec #{server_config}" %>
-<% end %>
-<% if SITE_HOST == 'au.serveme.tf' %>
-exec aliases.cfg
-<% end %>
-<% if SITE_HOST != 'na.serveme.tf' %>
-<%= %{servercfgfile "server.cfg" } %>
+<% if Frontress::FASTDL_URL.present? %>
+sv_downloadurl "<%= Frontress::FASTDL_URL %>"
 <% end %>
 
 tv_maxrate 0
 tv_snapshotrate 66
 
-<% if custom_whitelist_id.present? %>
-<% if enable_plugins? %>
-<%= %{tftrue_whitelist_id #{custom_whitelist_id}} %>
-<% else %>
-<%= %{mp_tournament_whitelist "cfg/custom_whitelist_#{custom_whitelist_id}.txt"} %><% end %>
-<%= %{say "Whitelist: http://whitelist.tf/#{custom_whitelist_id}"} %><% end %>
+<% if server_config %>
+<%= "exec #{server_config}" %>
+<% end %>
+<%= %{servercfgfile "server.cfg"} %>
 
-<% if !custom_whitelist_id && whitelist %>
-tftrue_whitelist_id <%= whitelist.to_s.chomp('.txt') %>
-<%= %{mp_tournament_whitelist "cfg/#{whitelist}"} %><% end %>
+<% if custom_whitelist_id.present? %>
+<%= %{mp_tournament_whitelist "cfg/custom_whitelist_#{custom_whitelist_id}.txt"} %>
+<% elsif whitelist %>
+<%= %{mp_tournament_whitelist "cfg/#{whitelist}"} %>
+<% end %>
+
+<% if matchmaking? %>
+// The match. sv_tags is how anything outside this config -- the agent, A2S,
+// an admin looking at the server browser -- can tell which match is on this
+// server, and the coordinator sets the same tag over RCON when it takes over.
+<%= %{sv_tags "tfmm:#{match_id}"} %>
+<% if match_ruleset %>
+// Last, so the ruleset wins: a ranked match must not inherit a casual convar
+// from a config that happened to be exec'd earlier.
+<%= "exec #{match_ruleset}" %>
+<% end %>
+<% end %>

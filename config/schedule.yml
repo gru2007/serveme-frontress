@@ -38,10 +38,10 @@ daily_zipfile_upload_tz:
   class: "DailyZipfileUploadWorker"
   queue: default
 
-league_maps_sync_tz:
-  cron: "0 * * * * Europe/Amsterdam"  # Run hourly
-  class: "LeagueMapsSyncWorker"
-  queue: default
+# The upstream league map sync is deliberately not scheduled here: this fork's
+# config/league_maps.yml is its own, and pulling Arie/serveme's would replace
+# the Frontress map groups with Team Fortress league ones every hour. The
+# worker still exists, so an admin can run it by hand if they want to look.
 
 docker_image_poll_tz:
   cron: "*/5 * * * * Europe/Amsterdam"

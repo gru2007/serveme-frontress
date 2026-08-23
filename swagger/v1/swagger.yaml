@@ -347,6 +347,18 @@ paths:
                         type: boolean
                       enable_demos_tf:
                         type: boolean
+                      match_id:
+                        type: string
+                        nullable: true
+                      match_mode:
+                        type: string
+                        nullable: true
+                        enum:
+                        - casual
+                        - ranked
+                      match_config:
+                        type: string
+                        nullable: true
                       sdr_ip:
                         type: string
                         nullable: true
@@ -501,6 +513,18 @@ paths:
                           type: boolean
                         enable_demos_tf:
                           type: boolean
+                        match_id:
+                          type: string
+                          nullable: true
+                        match_mode:
+                          type: string
+                          nullable: true
+                          enum:
+                          - casual
+                          - ranked
+                        match_config:
+                          type: string
+                          nullable: true
                         disable_democheck:
                           type: boolean
                           deprecated: true
@@ -598,6 +622,18 @@ paths:
                         type: boolean
                       enable_demos_tf:
                         type: boolean
+                      match_id:
+                        type: string
+                        nullable: true
+                      match_mode:
+                        type: string
+                        nullable: true
+                        enum:
+                        - casual
+                        - ranked
+                      match_config:
+                        type: string
+                        nullable: true
                       sdr_ip:
                         type: string
                         nullable: true
@@ -718,6 +754,18 @@ paths:
                       type: boolean
                     enable_demos_tf:
                       type: boolean
+                    match_id:
+                      type: string
+                      nullable: true
+                    match_mode:
+                      type: string
+                      nullable: true
+                      enum:
+                      - casual
+                      - ranked
+                    match_config:
+                      type: string
+                      nullable: true
                     democheck_mode:
                       type: string
                       enum:
@@ -801,6 +849,18 @@ paths:
                         type: boolean
                       enable_demos_tf:
                         type: boolean
+                      match_id:
+                        type: string
+                        nullable: true
+                      match_mode:
+                        type: string
+                        nullable: true
+                        enum:
+                        - casual
+                        - ranked
+                      match_config:
+                        type: string
+                        nullable: true
                       sdr_ip:
                         type: string
                         nullable: true
@@ -1000,6 +1060,18 @@ paths:
                         type: boolean
                       enable_demos_tf:
                         type: boolean
+                      match_id:
+                        type: string
+                        nullable: true
+                      match_mode:
+                        type: string
+                        nullable: true
+                        enum:
+                        - casual
+                        - ranked
+                      match_config:
+                        type: string
+                        nullable: true
                       sdr_ip:
                         type: string
                         nullable: true
@@ -1117,6 +1189,18 @@ paths:
                       type: boolean
                     enable_demos_tf:
                       type: boolean
+                    match_id:
+                      type: string
+                      nullable: true
+                    match_mode:
+                      type: string
+                      nullable: true
+                      enum:
+                      - casual
+                      - ranked
+                    match_config:
+                      type: string
+                      nullable: true
                     democheck_mode:
                       type: string
                       enum:
@@ -1185,6 +1269,18 @@ paths:
                       type: boolean
                     enable_demos_tf:
                       type: boolean
+                    match_id:
+                      type: string
+                      nullable: true
+                    match_mode:
+                      type: string
+                      nullable: true
+                      enum:
+                      - casual
+                      - ranked
+                    match_config:
+                      type: string
+                      nullable: true
                     democheck_mode:
                       type: string
                       enum:

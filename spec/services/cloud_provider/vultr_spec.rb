@@ -282,13 +282,13 @@ RSpec.describe CloudProvider::Vultr do
 
   describe "#cloud_init_docker_pull (private)" do
     let(:cloud_server) { build_stubbed(:cloud_server, cloud_location: "blr") }
-    let(:image) { "serveme/tf2-cloud-server:latest" }
+    let(:image) { Frontress::SERVER_IMAGE }
 
     it "wraps mirror pulls in a 90s timeout and the upstream pull in a 300s timeout" do
       script = provider.send(:cloud_init_docker_pull, cloud_server, image)
 
-      expect(script).to match(%r{timeout --kill-after=10s 90s docker pull blr\.vultrcr\.com/docker\.io/serveme/tf2-cloud-server:latest})
-      expect(script).to match(%r{timeout --kill-after=10s 300s docker pull serveme/tf2-cloud-server:latest})
+      expect(script).to match(/timeout --kill-after=10s 90s docker pull blr\.vultrcr\.com\/docker\.io\/#{Regexp.escape(Frontress.server_image_path)}:latest/)
+      expect(script).to match(/timeout --kill-after=10s 300s docker pull #{Regexp.escape(Frontress::SERVER_IMAGE)}/)
     end
   end
 end

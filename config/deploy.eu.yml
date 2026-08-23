@@ -4,7 +4,7 @@
 servers:
   web: { hosts: [new.fakkelbrigade.eu] }
   # CloudImageBuildWorker runs on sidekiq (EU only) and shells out to
-  # `docker build`/`docker push` to rebuild the tf2-cloud-server image.
+  # `docker build`/`docker push` to rebuild the frontress-server image.
   # Bind-mount the host docker socket + a staged Docker Hub push
   # credential, and add the host `docker` group (gid 994) so the
   # container's uid 1000 can use the socket. sidekiq2 inherits this.

@@ -95,53 +95,15 @@ describe LocalServer do
       file = double
       subject.stub(tf_dir: '/tmp')
 
-      rgl_base_cfg_content = File.read(Rails.root.join('doc', 'rgl_base.cfg'))
       allow(File).to receive(:read).and_call_original
-      allow(File).to receive(:read).with(Rails.root.join('doc', 'rgl_base.cfg')).and_return(rgl_base_cfg_content)
 
       expect(File).to receive(:write).with('/tmp/cfg/reservation.cfg', 'config file contents').ordered.and_return(file)
-      expect(File).to receive(:write).with('/tmp/cfg/ctf_turbine.cfg', 'config file contents').ordered.and_return(file)
-      expect(File).to receive(:write).with('/tmp/cfg/rgl_base.cfg', rgl_base_cfg_content).ordered.and_return(file)
+      expect(File).to receive(:write).with("/tmp/cfg/#{Frontress::DEFAULT_MAP}.cfg", 'config file contents').ordered.and_return(file)
       expect(File).to receive(:write).with('/tmp/motd.txt', 'http://localhost:3000/reservations/1337/motd?password=secret').ordered.and_return(file)
       expect(File).to receive(:write).with('/tmp/cfg/maplist_full.txt', anything).ordered.and_return(file)
 
       allow_any_instance_of(ServerConfigFileWriter).to receive(:generate_config_file).and_return('config file contents')
       subject.start_reservation(reservation)
-    end
-  end
-
-  describe '#handle_rgl_base_cfg' do
-    before do
-      subject.stub(tf_dir: '/tmp')
-    end
-
-    let(:rgl_base_cfg_content) { File.read(Rails.root.join('doc', 'rgl_base.cfg')) }
-
-    before do
-      allow(File).to receive(:read).and_call_original
-      allow(File).to receive(:read).with(Rails.root.join('doc', 'rgl_base.cfg')).and_return(rgl_base_cfg_content)
-    end
-
-    it 'writes the unmodified rgl_base.cfg when democheck_mode is kick' do
-      reservation = double(democheck_mode: 'kick')
-      expect(subject).to receive(:write_configuration).with('/tmp/cfg/rgl_base.cfg', rgl_base_cfg_content)
-      subject.handle_rgl_base_cfg(reservation)
-    end
-
-    it 'enables warn mode when democheck_mode is warn' do
-      reservation = double(democheck_mode: 'warn')
-      expected_content = rgl_base_cfg_content.gsub('sm_democheck_warn 0', 'sm_democheck_warn 1')
-      expect(subject).to receive(:write_configuration).with('/tmp/cfg/rgl_base.cfg', expected_content)
-      subject.handle_rgl_base_cfg(reservation)
-    end
-
-    it 'disables democheck when democheck_mode is disable' do
-      reservation = double(democheck_mode: 'disable')
-      expected_content = rgl_base_cfg_content
-        .gsub('sm_democheck_enabled 1', 'sm_democheck_enabled 0')
-        .gsub('sm_democheck_announce 1', 'sm_democheck_announce 0')
-      expect(subject).to receive(:write_configuration).with('/tmp/cfg/rgl_base.cfg', expected_content)
-      subject.handle_rgl_base_cfg(reservation)
     end
   end
 
@@ -166,7 +128,6 @@ describe LocalServer do
       subject.should_receive(:remove_configuration)
       subject.should_receive(:disable_plugins)
       subject.should_receive(:delete_from_server) # disable_demos_tf removes the demostf plugin
-      subject.should_receive(:restore_rgl_base_cfg)
       subject.should_receive(:rcon_exec)
       subject.stub(:uses_async_cleanup?).and_return(true)
       subject.should_receive(:move_files_to_temp_directory).with(reservation)
@@ -303,7 +264,7 @@ describe LocalServer do
     before do
       @tf_dir       = Rails.root.join('tmp')
       @config_file  = @tf_dir.join('cfg', 'reservation.cfg').to_s
-      @map_file     = @tf_dir.join('cfg', 'ctf_turbine.cfg').to_s
+      @map_file     = @tf_dir.join('cfg', "#{Frontress::DEFAULT_MAP}.cfg").to_s
       @ban_id_file  = @tf_dir.join('cfg', 'banned_user.cfg').to_s
       @ban_ip_file  = @tf_dir.join('cfg', 'banned_ip.cfg').to_s
       @motd_file    = @tf_dir.join('motd.txt').to_s

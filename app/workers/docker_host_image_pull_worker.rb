@@ -5,7 +5,7 @@ class DockerHostImagePullWorker
   include Sidekiq::Worker
   sidekiq_options retry: 3, queue: "default"
 
-  DOCKERHUB_IMAGE = "serveme/tf2-cloud-server:latest"
+  DOCKERHUB_IMAGE = Frontress::SERVER_IMAGE
   # The legacy builder's cache *is* the set of dangling per-step images, so a
   # blanket `docker image prune -f` on the build host throws away the TF2 base
   # (~15GB steamcmd download) and can even delete a running build's stage images.

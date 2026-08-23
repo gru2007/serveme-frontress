@@ -116,7 +116,7 @@ class CloudServer < RemoteServer
 
   sig { override.params(reservation: Reservation).returns(T.nilable(T::Boolean)) }
   def write_first_map(reservation)
-    first_map = reservation.first_map.presence || "ctf_turbine"
+    first_map = reservation.first_map.presence || Frontress::DEFAULT_MAP
     write_configuration(server_config_file("first_map.txt"), first_map)
   end
 
@@ -182,7 +182,7 @@ class CloudServer < RemoteServer
       return
     end
 
-    # Skip remove_configuration, disable_plugins, disable_demos_tf, restore_rgl_base_cfg
+    # Skip remove_configuration, disable_plugins, disable_demos_tf
     # — the container is destroyed after cleanup, so there's no point cleaning up configs.
     rcon_exec("sv_logflush 1; tv_stoprecord; kickall Reservation ended, every player can download the STV demo at https://#{SITE_HOST}")
     sleep 1 if Rails.env.production?
@@ -250,7 +250,9 @@ class CloudServer < RemoteServer
       name: "#{location_name} (#{provider_name == "remote_docker" ? T.must(docker_host).hostname : provider_name.titleize})",
       ip: provider_name == "remote_docker" ? T.must(docker_host).ip : "0.0.0.0",
       port: game_port.to_s,
-      path: "/home/tf2/hlserver/tf2",
+      # The game root inside the frontress-server container. tf_dir appends the
+      # mod directory to it, which is how config files land in tc2/cfg.
+      path: "/home/frontress/hlserver",
       rcon: rcon,
       active: false,
       cloud_provider: provider_name,

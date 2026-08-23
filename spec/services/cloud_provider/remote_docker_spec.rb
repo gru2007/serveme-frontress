@@ -58,7 +58,7 @@ RSpec.describe CloudProvider::RemoteDocker do
 
     it "pulls the image first" do
       provider.create_server(cloud_server)
-      expect(ssh_session).to have_received(:exec!).with("timeout 600 docker pull serveme/tf2-cloud-server:latest")
+      expect(ssh_session).to have_received(:exec!).with("timeout 600 docker pull #{Frontress::SERVER_IMAGE}")
     end
 
     it "pulls and runs :latest even when an image version has been recorded" do
@@ -66,8 +66,8 @@ RSpec.describe CloudProvider::RemoteDocker do
 
       provider.create_server(cloud_server)
 
-      expect(ssh_session).to have_received(:exec!).with("timeout 600 docker pull serveme/tf2-cloud-server:latest")
-      expect(ssh_session).to have_received(:exec!).with(a_string_matching(%r{docker run .* serveme/tf2-cloud-server:latest\z}))
+      expect(ssh_session).to have_received(:exec!).with("timeout 600 docker pull #{Frontress::SERVER_IMAGE}")
+      expect(ssh_session).to have_received(:exec!).with(a_string_matching(/docker run .* #{Regexp.escape(Frontress::SERVER_IMAGE)}\z/))
     end
 
     it "runs docker with host networking and port env vars" do

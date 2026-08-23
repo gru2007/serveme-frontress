@@ -71,7 +71,7 @@ RSpec.describe ServerReservationLifecycle do
     let(:reservation) { instance_double(Reservation, reload: true, ended?: false, status_update: nil) }
 
     before do
-      %i[remove_configuration disable_plugins restore_rgl_base_cfg rcon_exec rcon_disconnect
+      %i[remove_configuration disable_plugins rcon_exec rcon_disconnect
          clear_sdr_info! restart move_files_to_temp_directory delete_from_server].each do |m|
         allow(server).to receive(m)
       end

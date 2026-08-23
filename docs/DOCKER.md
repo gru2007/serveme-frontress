@@ -2,7 +2,9 @@
 
 One `.env`, one `docker compose up -d`, one port to put a reverse proxy in
 front of. No Rails credentials, no master key, no secrets scattered across the
-host.
+host — and no machine anywhere set up for the game by hand, because game
+servers are containers too. What makes this fork Frontress-only, and how the
+matchmaking coordinator plugs into it, is in [FRONTRESS.md](FRONTRESS.md).
 
 ```bash
 cp .env.example .env
@@ -44,25 +46,39 @@ reachable by **every game server in the pool**, which are remote by definition,
 so it ignores `SERVEME_BIND` and binds on all interfaces. If there is a
 firewall, that is the hole to open.
 
-## Adding servers
+## Game servers
 
-There is still no web interface for it. Once the stack is up:
+You do not add any. A reservation starts a `frontress-server` container and
+ending it destroys the container, so the pool is however many containers the
+machines you have will run.
+
+Out of the box that is **this machine**: `FRONTRESS_LOCAL_DOCKER=1` in `.env`,
+the docker socket mounted into `web` and `sidekiq` (docker-compose.yml already
+does), and `DOCKER_GID` set to the host's docker group so the unprivileged user
+in the container may use the socket:
 
 ```bash
-docker compose exec web bin/rails console
+getent group docker | cut -d: -f3
 ```
 
-```ruby
-LocalServer.create(name: "eu1", ip: "203.0.113.10", port: "27015",
-                   path: "/home/tf2/serverfiles")
+Two more values matter, because a game server container runs on the **host's**
+network and cannot reach this app by its compose-internal name:
 
-SshServer.create(name: "eu2", ip: "203.0.113.11", port: "27015",
-                 path: "/home/tf2/serverfiles")
+```bash
+DOCKER_HOST_IP=203.0.113.10        # this machine, as a container sees it
+CLOUD_CALLBACK_HOST=203.0.113.10:3000
 ```
 
-`LocalServer` means the Rails process can reach the game files directly, which
-inside a container it cannot — so in this setup you almost certainly want
-`SshServer`, with a key mounted for the `rails` user.
+More capacity means more machines: add them under `/admin/docker_hosts` and
+serveme sets each one up over SSH. Adding a server you run and maintain
+yourself is still possible — see [FRONTRESS.md](FRONTRESS.md) — but it is the
+path this fork exists to avoid.
+
+Check the whole picture at once:
+
+```bash
+docker compose exec web bin/rails frontress:doctor
+```
 
 ## Without Rails credentials
 
@@ -71,8 +87,8 @@ up by leaving it empty:
 
 - Cloudflare (R2 map uploads, DNS), Stripe and PayPal
 - Discord OAuth and the ban-appeal workflow
-- the cloud-server providers (Hetzner, Vultr, Kamatera)
-- logs.tf and demos.tf uploads on behalf of the site
+- the paid VM cloud providers (Hetzner, Vultr, Kamatera). Docker hosts and the
+  local docker daemon do not need it
 
 Reservations, servers, RCON, the API and Steam sign-in all work without it.
 
@@ -139,6 +155,11 @@ versions means dumping, `down -v`, and restoring.
 project name and its `DATABASE_URL` pointed at the host-side port rather than
 the internal one, so it never actually connected. There is nothing to migrate;
 start fresh.
+
+**Matchmaking needs a coordinator.** Set `FRONTRESS_COORDINATOR_URL` and
+`FRONTRESS_COORDINATOR_SECRET`, and give the coordinator an API key with
+`bin/rails frontress:coordinator_key`. Without it reservations still work and
+nothing matchmakes. See [FRONTRESS.md](FRONTRESS.md).
 
 **`RAILS_ENV` stays `production`.** The image is built for it — assets are
 precompiled at build time and there is no development toolchain in the final

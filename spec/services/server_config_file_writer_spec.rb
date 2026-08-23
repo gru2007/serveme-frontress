@@ -52,37 +52,6 @@ RSpec.describe ServerConfigFileWriter do
     end
   end
 
-  describe "#handle_rgl_base_cfg" do
-    let(:rgl_base) { File.read(Rails.root.join("doc", "rgl_base.cfg")) }
-
-    it "writes the unmodified cfg in kick mode" do
-      expect(server).to receive(:write_configuration).with("/tmp/cfg/rgl_base.cfg", rgl_base)
-      writer.handle_rgl_base_cfg(instance_double(Reservation, democheck_mode: "kick"))
-    end
-
-    it "enables warn mode" do
-      expected = rgl_base.gsub("sm_democheck_warn 0", "sm_democheck_warn 1")
-      expect(server).to receive(:write_configuration).with("/tmp/cfg/rgl_base.cfg", expected)
-      writer.handle_rgl_base_cfg(instance_double(Reservation, democheck_mode: "warn"))
-    end
-
-    it "disables democheck" do
-      expected = rgl_base
-        .gsub("sm_democheck_enabled 1", "sm_democheck_enabled 0")
-        .gsub("sm_democheck_announce 1", "sm_democheck_announce 0")
-      expect(server).to receive(:write_configuration).with("/tmp/cfg/rgl_base.cfg", expected)
-      writer.handle_rgl_base_cfg(instance_double(Reservation, democheck_mode: "disable"))
-    end
-  end
-
-  describe "#restore_rgl_base_cfg" do
-    it "writes the pristine rgl_base cfg" do
-      pristine = File.read(Rails.root.join("doc", "rgl_base.cfg"))
-      expect(server).to receive(:write_configuration).with("/tmp/cfg/rgl_base.cfg", pristine)
-      writer.restore_rgl_base_cfg
-    end
-  end
-
   describe "#write_custom_whitelist" do
     it "writes the whitelist content" do
       reservation = instance_double(Reservation, custom_whitelist_id: 1337, custom_whitelist_content: "foobar")
@@ -123,8 +92,7 @@ RSpec.describe ServerConfigFileWriter do
 
       expect(writes).to include(
         "/tmp/cfg/reservation.cfg",
-        "/tmp/cfg/ctf_turbine.cfg",
-        "/tmp/cfg/rgl_base.cfg",
+        "/tmp/cfg/#{Frontress::DEFAULT_MAP}.cfg",
         "/tmp/motd.txt",
         "/tmp/cfg/maplist_full.txt"
       )

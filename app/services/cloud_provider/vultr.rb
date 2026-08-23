@@ -333,12 +333,12 @@ module CloudProvider
       region = cloud_server.cloud_location || default_region
       location_info = LOCATIONS[region]
       fallback_region = PROXY_FALLBACK[location_info&.dig(:region)]
-      mirror = "#{region}.vultrcr.com/docker.io/serveme/tf2-cloud-server:latest"
+      mirror = "#{region}.vultrcr.com/docker.io/#{Frontress.server_image_path}:latest"
 
       pull_commands = []
       pull_commands << "(timeout --kill-after=10s #{MIRROR_PULL_TIMEOUT} docker pull #{mirror} && docker tag #{mirror} #{image})"
       if fallback_region && fallback_region != region
-        fallback_mirror = "#{fallback_region}.vultrcr.com/docker.io/serveme/tf2-cloud-server:latest"
+        fallback_mirror = "#{fallback_region}.vultrcr.com/docker.io/#{Frontress.server_image_path}:latest"
         pull_commands << "(timeout --kill-after=10s #{MIRROR_PULL_TIMEOUT} docker pull #{fallback_mirror} && docker tag #{fallback_mirror} #{image})"
       end
       pull_commands << "timeout --kill-after=10s #{UPSTREAM_PULL_TIMEOUT} docker pull #{image}"

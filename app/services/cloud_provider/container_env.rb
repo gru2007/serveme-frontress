@@ -4,7 +4,7 @@
 require "shellwords"
 
 module CloudProvider
-  # Single source of truth for the env-var contract the tf2-cloud-server
+  # Single source of truth for the env-var contract the frontress-server
   # container expects. Two modes:
   #
   #   :vm    — one container per VM (Hetzner/Vultr/Kamatera cloud-init).
@@ -54,20 +54,44 @@ module CloudProvider
       }
       env.merge!(port_env)
       env["ENABLE_FAKEIP"] = "1"
-      env["EXPECTED_TF2_VERSION"] = Server.latest_version.to_s
-      # The image ships SourceMod and the demos.tf uploader enabled, so the
-      # container has to be told to strip them out: nothing removes them once
-      # TF2 has booted.
+      env["GAME_DIR"] = Frontress::GAME_DIR
+      env["MAPLIST_URL"] = Frontress.maps_url
+      env["FASTDL_URL"] = Frontress::FASTDL_URL if Frontress::FASTDL_URL.present?
+      # Only a configured expected version is passed on. The container reads an
+      # empty one as "the payload you were built with is the payload you run",
+      # which is what a deployment without a version feed wants.
+      env["EXPECTED_SERVER_VERSION"] = Frontress::SERVER_VERSION.to_s if Frontress::SERVER_VERSION
+
       res = reservation
       if res
         env["ENABLE_PLUGINS"] = res.plugins_enabled? ? "1" : "0"
-        env["ENABLE_DEMOS_TF"] = res.demos_tf_enabled? ? "1" : "0"
+        env.merge!(match_env(res))
       end
       env["DISCORD_STAC_WEBHOOK_URL"] = discord_webhook if discord_webhook.present?
       env
     end
 
     private
+
+    # What a matchmaking reservation adds to a container.
+    #
+    # The map, the password and the ruleset are already in reservation.cfg, so
+    # they are not repeated here. What the container cannot get from a config
+    # file is where to report the result: the agent inside it needs the
+    # coordinator's address and its shared secret, and it needs to know which
+    # match this server is running before the first log line arrives.
+    sig { params(res: Reservation).returns(T::Hash[String, String]) }
+    def match_env(res)
+      return {} unless res.match_id.present? && Frontress.coordinator_configured?
+
+      {
+        "GC_URL" => Frontress::COORDINATOR_URL,
+        "GC_SECRET" => Frontress::COORDINATOR_SECRET,
+        "MATCH_ID" => res.match_id.to_s,
+        "MATCH_MODE" => res.match_mode.to_s,
+        "SERVER_CONNECT" => res.server&.public_ip ? "#{res.server&.public_ip}:#{res.server&.public_port}" : ""
+      }
+    end
 
     sig { returns(T::Hash[String, String]) }
     def port_env

@@ -64,6 +64,37 @@ class Reservation < ActiveRecord::Base
 
   scope :current, -> { where(starts_at: ..Time.current).where(ends_at: Time.current..) }
 
+  # Matchmaking reservations: the ones the game coordinator made for a match.
+  scope :matchmaking, -> { where.not(match_id: nil) }
+
+  # A match's reservation, if it still exists. The coordinator asks by match id
+  # when it wants to know whether a match still has a server.
+  sig { params(match_id: String).returns(T.nilable(Reservation)) }
+  def self.for_match(match_id)
+    matchmaking.where(match_id: match_id).order(id: :desc).first
+  end
+
+  sig { returns(T::Boolean) }
+  def matchmaking?
+    match_id.present?
+  end
+
+  sig { returns(T::Boolean) }
+  def ranked?
+    match_mode.to_s == "ranked"
+  end
+
+  # The config the server execs for this match. A reservation may name one
+  # explicitly (the coordinator sends the group's server_config); otherwise the
+  # mode decides, and a reservation that is not a match has no match config at
+  # all.
+  sig { returns(T.nilable(String)) }
+  def match_ruleset
+    return nil unless matchmaking?
+
+    match_config.presence || Frontress.match_config_for(match_mode)
+  end
+
   sig { returns(String) }
   def to_s
     "#{id}: #{human_timerange}"

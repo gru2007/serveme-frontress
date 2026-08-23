@@ -144,21 +144,4 @@ class PagesController < ApplicationController
 
   public
 
-  def comtress
-    @team_comtress_group = Group.team_comtress_group
-    @is_member = current_user.groups.exists?(id: @team_comtress_group.id)
-
-    if request.post?
-      if params[:opt_in] == "true"
-        group_membership = current_user.group_users.find_or_initialize_by(group: @team_comtress_group)
-        group_membership.expires_at = nil
-        group_membership.save!
-        flash[:notice] = "You have opted into Team Comtress servers."
-      elsif params[:opt_out] == "true"
-        current_user.group_users.where(group: @team_comtress_group).destroy_all
-        flash[:notice] = "You have opted out of Team Comtress servers."
-      end
-      redirect_to comtress_path
-    end
-  end
 end

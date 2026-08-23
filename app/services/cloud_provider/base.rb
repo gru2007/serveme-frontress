@@ -235,7 +235,7 @@ module CloudProvider
 
     sig { overridable.params(_cloud_server: CloudServer).returns(String) }
     def cloud_init_docker_image(_cloud_server)
-      "serveme/tf2-cloud-server:latest"
+      Frontress::SERVER_IMAGE
     end
 
     sig { overridable.params(_cloud_server: CloudServer, image: String).returns(String) }

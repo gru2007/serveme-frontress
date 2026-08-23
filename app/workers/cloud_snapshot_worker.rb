@@ -19,7 +19,7 @@ class CloudSnapshotWorker
 
     setup_script = <<~BASH
       #!/bin/bash
-      docker pull serveme/tf2-cloud-server:latest
+      docker pull #{Frontress::SERVER_IMAGE}
       touch /tmp/image-ready
     BASH
 

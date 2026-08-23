@@ -14,6 +14,9 @@ json.server_config_id reservation.server_config_id
 json.whitelist_id reservation.whitelist_id
 json.custom_whitelist_id reservation.custom_whitelist_id
 json.auto_end reservation.auto_end
+json.match_id reservation.match_id
+json.match_mode reservation.match_mode
+json.match_config reservation.match_ruleset
 json.enable_plugins reservation.enable_plugins
 json.enable_demos_tf reservation.enable_demos_tf
 json.sdr_ip reservation.connect_sdr_ip

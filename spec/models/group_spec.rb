@@ -21,7 +21,6 @@ describe Group do
         config_admin_group: 'Config Admins',
         streamer_group: 'Streamers',
         trusted_api_group: 'Trusted API',
-        team_comtress_group: 'Team Comtress',
         cloud_group: 'Cloud'
       }.each do |method, expected_name|
         group = Group.public_send(method)

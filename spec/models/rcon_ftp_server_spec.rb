@@ -10,7 +10,7 @@ describe RconFtpServer do
 
   describe '#remove_configuration' do
     it 'deletes the reservation configs' do
-      configuration_files = [ '/foo/bar/cfg/reservation.cfg', '/foo/bar/cfg/ctf_turbine.cfg', '/foo/bar/cfg/banned_user.cfg', '/foo/bar/cfg/banned_ip.cfg', '/foo/bar/motd.txt' ]
+      configuration_files = [ '/foo/bar/cfg/reservation.cfg', "/foo/bar/cfg/#{Frontress::DEFAULT_MAP}.cfg", '/foo/bar/cfg/banned_user.cfg', '/foo/bar/cfg/banned_ip.cfg', '/foo/bar/motd.txt' ]
       subject.should_receive(:delete_from_server).with(configuration_files)
       subject.remove_configuration
     end

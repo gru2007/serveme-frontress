@@ -62,7 +62,7 @@ class LogWorker
   def handle_mapstart(mapname)
     reservation&.broadcast_connect_info
     ActiveReservationCheckerWorker.perform_in(10.seconds, reservation&.id)
-    if mapname == "ctf_turbine"
+    if mapname == Frontress::DEFAULT_MAP
       reservation&.status_update("Server startup complete, switching map")
     else
       reservation&.update_column(:ready_at, Time.current) if reservation&.ready_at.nil?

@@ -28,13 +28,9 @@ class ServerReservationLifecycle
         enable_demos_tf
         reservation.status_update("Enabled demos.tf")
       end
-      unless reservation.democheck_kick?
-        reservation.status_update("Setting RGL democheck mode to #{reservation.democheck_mode}")
-        @server.handle_rgl_base_cfg(reservation)
-      end
     end
     if @server.cloud?
-      reservation.status_update("Config files sent, waiting for TF2 to boot")
+      reservation.status_update("Config files sent, waiting for the server to boot")
       return
     end
     ensure_map_on_server(reservation)
@@ -46,7 +42,7 @@ class ServerReservationLifecycle
     else
       reservation.status_update("Attempting fast start")
       if @server.rcon_exec("removeip 1; removeip 1; removeip 1; sv_logsecret #{reservation.logsecret}; logaddress_add direct.#{SITE_HOST}:40001; servercfgfile reservation.cfg", allow_blocked: true)
-        first_map = reservation.first_map.presence || "ctf_turbine"
+        first_map = reservation.first_map.presence || Frontress::DEFAULT_MAP
         @server.rcon_exec("changelevel #{first_map}; exec reservation.cfg")
         reservation.status_update("Fast start attempted, waiting to boot")
       else
@@ -72,7 +68,6 @@ class ServerReservationLifecycle
     download_stac_logs(reservation)
     @server.disable_plugins
     disable_demos_tf
-    @server.restore_rgl_base_cfg
     @server.rcon_exec("sv_logflush 1; tv_stoprecord; kickall Reservation ended, every player can download the STV demo at https://#{SITE_HOST}")
     sleep 1 if Rails.env.production? # Give server a second to finish the STV demo and write the log
 

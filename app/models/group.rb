@@ -9,7 +9,6 @@ class Group < ActiveRecord::Base
   LEAGUE_ADMIN_GROUP = T.let(find_or_create_by(name: "League Admins"), Group)
   CONFIG_ADMIN_GROUP = T.let(find_or_create_by(name: "Config Admins"), Group)
   STREAMER_GROUP = T.let(find_or_create_by(name: "Streamers"), Group)
-  TEAM_COMTRESS_GROUP = T.let(find_or_create_by(name: "Team Comtress"), Group)
   TRUSTED_API_GROUP = T.let(find_or_create_by(name: "Trusted API"), Group)
   CLOUD_GROUP = T.let(find_or_create_by(name: "Cloud"), Group)
 
@@ -50,11 +49,6 @@ class Group < ActiveRecord::Base
   sig { returns(Group) }
   def self.trusted_api_group
     TRUSTED_API_GROUP
-  end
-
-  sig { returns(Group) }
-  def self.team_comtress_group
-    TEAM_COMTRESS_GROUP
   end
 
   sig { returns(Group) }

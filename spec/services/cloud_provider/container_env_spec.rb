@@ -47,31 +47,50 @@ RSpec.describe CloudProvider::ContainerEnv do
     end
   end
 
-  describe "ENABLE_DEMOS_TF" do
-    it "is 1 when the reservation wants demos.tf" do
-      reservation.update_columns(enable_plugins: true, enable_demos_tf: true)
-
-      expect(env["ENABLE_DEMOS_TF"]).to eq("1")
+  describe "the game the container runs" do
+    it "names the mod directory and the map list, which are the game" do
+      expect(env["GAME_DIR"]).to eq(Frontress::GAME_DIR)
+      expect(env["MAPLIST_URL"]).to eq(Frontress.maps_url)
     end
 
-    it "is 0 when the reservation has demos.tf disabled" do
-      expect(env["ENABLE_DEMOS_TF"]).to eq("0")
+    it "leaves the expected build out when none is configured" do
+      stub_const("Frontress::SERVER_VERSION", nil)
+      expect(env).not_to have_key("EXPECTED_SERVER_VERSION")
     end
 
-    it "is 1 when the site setting forces demos.tf on" do
-      allow(SiteSetting).to receive(:always_enable_demos_tf?).and_return(true)
+    it "passes the expected build when one is configured" do
+      stub_const("Frontress::SERVER_VERSION", 120_125)
+      expect(env["EXPECTED_SERVER_VERSION"]).to eq("120125")
+    end
+  end
 
-      expect(env["ENABLE_DEMOS_TF"]).to eq("1")
+  describe "a matchmaking reservation" do
+    before do
+      stub_const("Frontress::COORDINATOR_URL", "http://gc.example.org:27100")
+      stub_const("Frontress::COORDINATOR_SECRET", "s3cret")
     end
 
-    it "is emitted in VM mode too" do
-      expect(env(mode: :vm)["ENABLE_DEMOS_TF"]).to eq("0")
+    it "tells the agent where to report the match" do
+      reservation.update_columns(match_id: "9f2c", match_mode: "ranked")
+
+      expect(env["GC_URL"]).to eq("http://gc.example.org:27100")
+      expect(env["GC_SECRET"]).to eq("s3cret")
+      expect(env["MATCH_ID"]).to eq("9f2c")
+      expect(env["MATCH_MODE"]).to eq("ranked")
     end
 
-    it "is left out when the server has no reservation" do
-      cloud_server.update_column(:cloud_reservation_id, nil)
+    it "says nothing about a coordinator on an ordinary reservation" do
+      expect(env).not_to have_key("GC_URL")
+      expect(env).not_to have_key("MATCH_ID")
+    end
 
-      expect(env).not_to have_key("ENABLE_DEMOS_TF")
+    # A container that is told a match id but not where to report it would
+    # heartbeat into the void; the agent is simply not started in that case.
+    it "says nothing when no coordinator is configured" do
+      stub_const("Frontress::COORDINATOR_URL", "")
+      reservation.update_columns(match_id: "9f2c", match_mode: "casual")
+
+      expect(env).not_to have_key("GC_URL")
     end
   end
 end

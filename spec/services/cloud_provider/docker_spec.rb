@@ -24,7 +24,6 @@ RSpec.describe CloudProvider::Docker do
 
       expect(provider).to have_received(:system) do |*args|
         expect(args).to include("docker", "run", "-d", "--net=host")
-        expect(args).to include("--security-opt", "seccomp=/etc/docker/seccomp-tf2.json")
         expect(args).to include("--name", "res-#{cloud_server.cloud_reservation_id}-cloud-#{cloud_server.id}")
         expect(args).to include("-e", "CALLBACK_URL=https://localhost/api/cloud_servers/#{cloud_server.id}/ready")
         expect(args).to include("-e", "CALLBACK_TOKEN=test-token")
@@ -34,7 +33,7 @@ RSpec.describe CloudProvider::Docker do
         expect(args).to include("-e", "SSH_PORT=22000")
         expect(args).to include("-e", "CLIENT_PORT=40001")
         expect(args).to include("-e", "STEAM_PORT=30001")
-        expect(args).to include("tf2-cloud-server")
+        expect(args).to include(Frontress::SERVER_IMAGE)
       end
     end
 

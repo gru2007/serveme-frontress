@@ -1,96 +1,28 @@
 ---
+# Map groups shown in the map picker.
+#
+# Upstream serveme keeps this list in sync with a file in the Arie/serveme
+# repository, which is a list of Team Fortress league maps. This fork owns its
+# own list -- these are the maps Team Frontress plays -- so the sync worker is
+# off and this file is edited here.
+#
+# The coordinator has its own copy of the maps each match group may pick from
+# (match_groups[].maps in coordinator.json). Keeping the two in step is a
+# deliberate manual act: a map the site cannot hand out is not a map a match
+# should be formed on.
 league_maps:
-- name: ETF2L 6v6
+- name: Frontress Casual
   active: true
   maps:
-  - cp_granary_pro_rc17a3
-  - cp_gullywash_f9
-  - cp_metalworks_f7
-  - cp_process_f12
-  - cp_subbase_b3a
-  - cp_sunshine
-  - koth_bagel_rc13
-  - koth_govan_rc2
   - koth_product_final
-- name: ETF2L HL
+  - cp_process_final
+  - pl_upward
+  - ctf_turbine
+- name: Frontress Ranked 6v6
   active: true
   maps:
-  - cp_steel_f12
+  - cp_process_final
+  - cp_gullywash_final1
   - koth_product_final
-  - koth_proot_b5b
-  - pl_swiftwater_final1
-  - pl_upward_f12
-  - pl_vigil_rc10
-- name: ETF2L Ultiduo
-  active: true
-  maps:
-  - koth_ultiduo_r_b7
-  - ultiduo_baloo_v2
-  - ultiduo_grove_b4
-  - ultiduo_lookout_b1
-  - ultiduo_cooked_rc2
-  - ultiduo_process_f10
-  - ultiduo_babty_f3
-- name: ozfortress Ultiduo
-  active: true
-  maps:
-  - ultiduo_baloo_v2
-  - ulti_signal_a6
-  - ultiduo_ozf_r
-  - ultiduo_swine_b06
-- name: ozfortress 6v6
-  active: true
-  maps:
-  - cp_gullywash_f9
-  - cp_process_f12
-  - cp_reckoner
   - cp_snakewater_final1
-  - cp_sultry_b8a
-  - cp_sunshine
-  - koth_bagel_rc13
-  - koth_clearcut_b18
-  - koth_product_final
-- name: ozfortress HL
-  active: true
-  maps:
-  - cp_steel_f12
-  - koth_ashville_final1
-  - koth_product_final
-  - koth_proot_b6c-alt2
-  - koth_warmtic_f10
-  - pl_eruption_b15
-  - pl_swiftwater_final1
-  - pl_upward_f12
-  - pl_vigil_rc10
-- name: RGL 6v6
-  active: true
-  maps:
-  - cp_granary_pro_rc17a3
-  - cp_gullywash_f9
-  - cp_metalworks_f7
-  - cp_process_f12
-  - cp_snakewater_final1
-  - cp_sunshine
-  - koth_bagel_rc13
-  - koth_product_final
-- name: RGL HL
-  active: true
-  maps:
-  - cp_steel_f12
-  - koth_ashville_final2
-  - koth_product_final
-  - koth_proot_b5b
-  - pl_swiftwater_final1
-  - pl_upward_f12
-  - pl_vigil_rc10
-- name: RGL Pass Time
-  active: true
-  maps:
-  - pass_arena2_b15
-  - pass_boutique_rc5
-  - pass_maple_a10
-  - pass_plexiglass_b6
-  - pass_ruin_a12_waterless
-  - pass_stadium_rc4
-  - pass_stonework_rc4
-  - pass_torii_a8
+  - cp_granary_pro_rc8

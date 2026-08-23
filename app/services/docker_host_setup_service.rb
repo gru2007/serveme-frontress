@@ -6,7 +6,7 @@ require "base64"
 class DockerHostSetupService
   extend T::Sig
 
-  DOCKER_IMAGE = "serveme/tf2-cloud-server:latest"
+  DOCKER_IMAGE = Frontress::SERVER_IMAGE
   CADDY_IMAGE = "serveme/caddy-cloudflare:latest"
   WEBSOCKET_ECHO_IMAGE = "serveme/websocket-echo:latest"
 

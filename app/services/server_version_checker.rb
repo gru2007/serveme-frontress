@@ -1,8 +1,18 @@
 # typed: strict
 # frozen_string_literal: true
 
-# Resolves the latest available TF2 version (fleet-wide, via the Steam API) and
-# tells whether a given server is behind it.
+# Resolves the build the fleet should be on, and tells whether a given server
+# is behind it.
+#
+# Upstream asks Steam what the current TF2 build is. There is no such answer
+# for Team Frontress: the playtest AppID does not serve UpToDateCheck, and the
+# build a community runs is the one its operator deployed. So the expected
+# version is FRONTRESS_SERVER_VERSION (steam.inf's PatchVersion, which
+# game_clean/copy_server.sh also writes to VERSION in the payload), and an
+# unset one means "do not check".
+#
+# That default matters: a nil version used to mean "every server is outdated",
+# and the thing at the other end of "outdated" is a fleet-wide restart.
 class ServerVersionChecker
   extend T::Sig
 
@@ -13,8 +23,8 @@ class ServerVersionChecker
 
     sig { returns(T.nilable(Integer)) }
     def latest_version
-      # skip_nil so a failed Steam lookup doesn't cache "unknown" for 5 minutes:
-      # callers treat nil as "every server is outdated", so we'd rather retry.
+      # skip_nil so a configured-but-unreachable source is retried rather than
+      # cached as "unknown" for five minutes.
       Rails.cache.fetch(CACHE_KEY, expires_in: 5.minutes, skip_nil: true) do
         fetch_latest_version
       end
@@ -24,24 +34,7 @@ class ServerVersionChecker
     def fetch_latest_version
       return 100_000_000 if Rails.env == "test"
 
-      response = Faraday.new(url: "http://api.steampowered.com").get("ISteamApps/UpToDateCheck/v1?appid=440&version=0") do |req|
-        req.options.timeout = 5
-        req.options.open_timeout = 2
-      end
-      return unless response.success?
-
-      json = JSON.parse(response.body)
-      # Steam answers 200 with no required_version when the lookup fails. Plain
-      # #to_i would turn that into 0, which reads as a valid (truthy) version and
-      # sends bogus versions downstream, so treat anything non-positive as unknown.
-      version = json.dig("response", "required_version").to_i
-      version.positive? ? version : nil
-    rescue SteamCondenser::Error::Timeout, Net::ReadTimeout, Faraday::TimeoutError => e
-      Rails.logger.info "Steam API timeout when fetching latest version: #{e.message}"
-      nil
-    rescue StandardError => e
-      Rails.logger.error "Failed to fetch latest version: #{e.message}"
-      nil
+      Frontress::SERVER_VERSION
     end
   end
 
@@ -58,8 +51,9 @@ class ServerVersionChecker
 
   sig { returns(T::Boolean) }
   def outdated?
-    return false if @server.team_comtress_server?
+    expected = self.class.latest_version
+    return false if expected.nil?
 
-    current != self.class.latest_version
+    current != expected
   end
 end

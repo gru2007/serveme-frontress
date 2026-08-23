@@ -1,38 +1,59 @@
 # typed: true
 # frozen_string_literal: true
 
+# Creates a reservation whose server is a container.
+#
+# Two shapes of that: a container on a remote docker host (SSH, many hosts,
+# picked by location) and a container on this machine's own docker daemon
+# (docker_host_id nil). They differ in capacity accounting and in nothing else,
+# because the container and everything inside it is identical.
 class DockerHostReservationCreator
   extend T::Sig
 
   sig { returns(User) }
   attr_reader :user
 
-  sig { returns(Integer) }
+  sig { returns(T.nilable(Integer)) }
   attr_reader :docker_host_id
 
   sig { returns(T.untyped) }
   attr_reader :reservation_params
 
-  sig { params(user: User, docker_host_id: Integer, reservation_params: T.untyped).void }
+  sig { params(user: User, docker_host_id: T.nilable(Integer), reservation_params: T.untyped).void }
   def initialize(user:, docker_host_id:, reservation_params:)
     @user = user
     @docker_host_id = docker_host_id
     @reservation_params = reservation_params
   end
 
+  sig { returns(T::Boolean) }
+  def local?
+    docker_host_id.nil?
+  end
+
   sig { returns(Reservation) }
   def create!
-    $lock.synchronize("cloud-reservation-docker-host-#{docker_host_id}", retries: 5, initial_wait: 0.1, expiry: 30) do
-      docker_host = DockerHost.find(docker_host_id)
+    $lock.synchronize("cloud-reservation-docker-host-#{docker_host_id || 'local'}", retries: 5, initial_wait: 0.1, expiry: 30) do
       starts_at = reservation_params[:starts_at].present? ? Time.zone.parse(reservation_params[:starts_at].to_s) : Time.current
       ends_at = reservation_params[:ends_at].present? ? Time.zone.parse(reservation_params[:ends_at].to_s) : 2.hours.from_now
 
-      if docker_host.full_during?(starts_at, ends_at)
-        raise CapacityError, "This location is at full capacity for the selected time. Please choose another server."
+      if local?
+        unless CloudProvider::Docker.available_during?(starts_at, ends_at)
+          raise CapacityError, "This machine is already running as many game servers as it is allowed to. Try again later."
+        end
+      else
+        docker_host = DockerHost.find(docker_host_id)
+        if docker_host.full_during?(starts_at, ends_at)
+          raise CapacityError, "This location is at full capacity for the selected time. Please choose another server."
+        end
       end
 
       rcon = reservation_params[:rcon].presence || SecureRandom.hex(8)
-      cloud_server = CloudServer.build_for_location("remote_docker", docker_host_id.to_s, rcon: rcon)
+      cloud_server = if local?
+        CloudServer.build_for_location("docker", "local", rcon: rcon)
+      else
+        CloudServer.build_for_location("remote_docker", docker_host_id.to_s, rcon: rcon)
+      end
       cloud_server.save!
 
       reservation = T.cast(user.reservations.build(reservation_params.except(:server_id)), Reservation)

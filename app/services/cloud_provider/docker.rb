@@ -4,10 +4,57 @@
 require "open3"
 
 module CloudProvider
+  # Containers on the machine this app runs on.
+  #
+  # It is the deployment this fork is built around: one box, `docker compose
+  # up`, and game servers as containers next to the site. There is no host to
+  # provision, no SSH key to distribute and no cloud account -- the docker
+  # socket is already there.
+  #
+  # Enabled with FRONTRESS_LOCAL_DOCKER=1 (and always in development). The app
+  # needs the docker socket mounted to use it, which docker-compose.yml does.
   class Docker < DockerContainerProvider
     LOCATIONS = T.let({
       "local" => { name: "Local", country: "LAN", region: "LAN", flag: "eu" }
     }.freeze, T::Hash[String, T::Hash[Symbol, String]])
+
+    # The id the API hands out for "a container here". DockerHost numbers its
+    # own virtual servers from 1e9; this sits above them so the two can never
+    # be confused for one another.
+    LOCAL_VIRTUAL_SERVER_ID = 2_000_000_000
+
+    sig { returns(T::Boolean) }
+    def self.enabled?
+      ENV["FRONTRESS_LOCAL_DOCKER"].present? || Rails.env.development?
+    end
+
+    sig { params(server_id: T.any(String, Integer)).returns(T::Boolean) }
+    def self.local_server_id?(server_id)
+      server_id.to_i == LOCAL_VIRTUAL_SERVER_ID
+    end
+
+    # How many containers this machine will run at once. A box that can host
+    # four 24-slot servers is not the same box as one that can host twenty.
+    sig { returns(Integer) }
+    def self.max_containers
+      Integer(ENV.fetch("FRONTRESS_LOCAL_DOCKER_MAX_CONTAINERS", 4))
+    end
+
+    sig { params(starts_at: T.any(Time, ActiveSupport::TimeWithZone), ends_at: T.any(Time, ActiveSupport::TimeWithZone)).returns(Integer) }
+    def self.container_count_during(starts_at, ends_at)
+      Reservation.joins(:server)
+        .where(servers: { type: "CloudServer", cloud_provider: "docker" })
+        .where.not(servers: { cloud_status: "destroyed" })
+        .where("reservations.starts_at < ? AND reservations.ends_at > ?", ends_at, starts_at)
+        .count
+    end
+
+    sig { params(starts_at: T.any(Time, ActiveSupport::TimeWithZone), ends_at: T.any(Time, ActiveSupport::TimeWithZone)).returns(T::Boolean) }
+    def self.available_during?(starts_at, ends_at)
+      return false unless enabled?
+
+      container_count_during(starts_at, ends_at) < max_containers
+    end
 
     sig { override.params(cloud_server: CloudServer).returns(String) }
     def create_server(cloud_server)

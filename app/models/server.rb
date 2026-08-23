@@ -96,21 +96,13 @@ class Server < ActiveRecord::Base
 
     where.not(last_known_version: nil)
       .where(last_known_version: ...latest_version)
-      .where.not(id: team_comtress_servers.select(:id))
       .where.not(type: "CloudServer")
   }
 
-  sig { returns(ActiveRecord::Relation) }
-  def self.team_comtress_servers
-    joins(:groups).where(groups: { id: Group.team_comtress_group.id }).group(:id)
-  end
-
   scope :updated, ->(latest_version = nil) {
     latest_version ||= self.latest_version
-    tc_server_ids = team_comtress_servers.pluck(:id)
 
     where(last_known_version: [ nil, latest_version ])
-      .or(where(id: tc_server_ids))
   }
 
   scope :updating, -> { where(update_status: "Updating") }
@@ -182,16 +174,6 @@ class Server < ActiveRecord::Base
     config_file_writer.update_configuration(reservation)
   end
 
-  sig { params(reservation: Reservation).returns(T.untyped) }
-  def handle_rgl_base_cfg(reservation)
-    config_file_writer.handle_rgl_base_cfg(reservation)
-  end
-
-  sig { returns(T.untyped) }
-  def restore_rgl_base_cfg
-    config_file_writer.restore_rgl_base_cfg
-  end
-
   sig { returns(T.untyped) }
   def enable_plugins
     config_file_writer.enable_plugins
@@ -227,10 +209,7 @@ class Server < ActiveRecord::Base
 
   sig { returns(String) }
   def tf_dir
-    @tf_dir ||= begin
-      game_dir = team_comtress_server? ? "tc2" : "tf"
-      File.join(path, game_dir)
-    end
+    @tf_dir ||= File.join(path, Frontress::GAME_DIR)
   end
 
   sig { returns(T.nilable(String)) }
@@ -321,13 +300,6 @@ class Server < ActiveRecord::Base
     ServerReservationEstimator.new(reservation).end_estimate
   end
 
-  sig { returns(T::Boolean) }
-  def team_comtress_server?
-    return @team_comtress_server if defined?(@team_comtress_server)
-
-    @team_comtress_server = groups.any? { |g| g.id == Group.team_comtress_group.id }
-  end
-
   sig { returns(T.nilable(Integer)) }
   def self.latest_version
     ServerVersionChecker.latest_version
@@ -400,13 +372,14 @@ class Server < ActiveRecord::Base
   def save_version_info(server_info)
     version = server_info&.version
     latest_version = self.class.latest_version
-    return if version.nil? || latest_version.nil?
-
-    # Team Comtress servers run a different version and should not be marked as outdated
-    if team_comtress_server?
-      update(last_known_version: version) if last_known_version != version
+    # An unknown expected version is not "everything is outdated": without
+    # FRONTRESS_SERVER_VERSION the fleet's version is recorded and nothing is
+    # ever restarted for it.
+    if latest_version.nil?
+      update(last_known_version: version) if version && last_known_version != version
       return
     end
+    return if version.nil?
 
     if version < latest_version
       Rails.logger.warn("Server #{name} was updating since #{update_started_at ? I18n.l(update_started_at, format: :short) : 'unknown'} but is now back online with old version #{version} instead of latest #{latest_version}") if update_status == "Updating"
@@ -618,7 +591,7 @@ class Server < ActiveRecord::Base
 
   sig { returns(String) }
   def initial_map_config_file
-    server_config_file("ctf_turbine.cfg")
+    server_config_file("#{Frontress::DEFAULT_MAP}.cfg")
   end
 
   sig { returns(String) }

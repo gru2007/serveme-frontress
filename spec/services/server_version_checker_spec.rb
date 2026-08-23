@@ -8,29 +8,17 @@ RSpec.describe ServerVersionChecker do
     context "in a non-test environment" do
       before { allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("production")) }
 
-      define_method(:stub_steam) do |success:, body:|
-        allow(Faraday).to receive(:new).and_return(
-          instance_double(Faraday::Connection, get: instance_double(Faraday::Response, success?: success, body: body.to_json))
-        )
+      it "is the configured build" do
+        stub_const("Frontress::SERVER_VERSION", 120_125)
+        expect(described_class.fetch_latest_version).to eq(120_125)
       end
 
-      it "returns the required_version when Steam answers normally" do
-        stub_steam(success: true, body: { "response" => { "required_version" => 10_822_003 } })
-        expect(described_class.fetch_latest_version).to eq(10_822_003)
-      end
-
-      it "returns nil (not 0) when required_version is missing" do
-        stub_steam(success: true, body: { "response" => { "success" => false } })
-        expect(described_class.fetch_latest_version).to be_nil
-      end
-
-      it "returns nil when the Steam request is unsuccessful" do
-        stub_steam(success: false, body: {})
-        expect(described_class.fetch_latest_version).to be_nil
-      end
-
-      it "returns nil on a timeout" do
-        allow(Faraday).to receive(:new).and_raise(Faraday::TimeoutError)
+      # Nothing tells this fork what the current build is -- there is no Steam
+      # UpToDateCheck for our AppID -- so an unconfigured version has to mean
+      # "do not check". The alternative reading, "everything is outdated",
+      # restarts the whole fleet.
+      it "is nil when no build is configured" do
+        stub_const("Frontress::SERVER_VERSION", nil)
         expect(described_class.fetch_latest_version).to be_nil
       end
     end
@@ -66,20 +54,18 @@ RSpec.describe ServerVersionChecker do
   describe "#outdated?" do
     let(:server) { build_stubbed(:server) }
 
-    it "is false for team comtress servers regardless of version" do
-      allow(server).to receive(:team_comtress_server?).and_return(true)
+    it "is false when no expected build is configured" do
+      allow(described_class).to receive(:latest_version).and_return(nil)
       expect(described_class.new(server)).not_to be_outdated
     end
 
     it "is true when the server version is behind the latest" do
-      allow(server).to receive(:team_comtress_server?).and_return(false)
       allow(server).to receive(:rcon_exec).with("version").and_return("Network PatchVersion: 5257083")
       allow(described_class).to receive(:latest_version).and_return(100_000_000)
       expect(described_class.new(server)).to be_outdated
     end
 
     it "is false when the server is on the latest version" do
-      allow(server).to receive(:team_comtress_server?).and_return(false)
       allow(server).to receive(:rcon_exec).with("version").and_return("Network PatchVersion: 100000000")
       allow(described_class).to receive(:latest_version).and_return(100_000_000)
       expect(described_class.new(server)).not_to be_outdated
