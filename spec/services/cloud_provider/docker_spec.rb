@@ -29,7 +29,7 @@ RSpec.describe CloudProvider::Docker do
         expect(args).to include("--security-opt", "seccomp=unconfined")
         expect(args).to include("--security-opt", "apparmor=unconfined")
         expect(args).to include("--name", "res-#{cloud_server.cloud_reservation_id}-cloud-#{cloud_server.id}")
-        expect(args).to include("-e", "CALLBACK_URL=https://localhost/api/cloud_servers/#{cloud_server.id}/ready")
+        expect(args).to include("-e", "CALLBACK_URL=#{SITE_URL}/api/cloud_servers/#{cloud_server.id}/ready")
         expect(args).to include("-e", "CALLBACK_TOKEN=test-token")
         expect(args).to include("-e", "SSH_AUTHORIZED_KEYS=ssh-ed25519 AAAA test@cloud")
         expect(args).to include("-e", "PORT=27015")
@@ -86,6 +86,7 @@ RSpec.describe CloudProvider::Docker do
 
       it "falls back to the discord.stac_webhook_url credential when ENV is unset" do
         allow(ENV).to receive(:[]).with("DISCORD_STAC_WEBHOOK_URL").and_return(nil)
+        allow(Rails.application.credentials).to receive(:dig).and_call_original
         allow(Rails.application.credentials).to receive(:dig)
           .with(:discord, :stac_webhook_url).and_return("https://discord.com/api/webhooks/local/cred")
 
