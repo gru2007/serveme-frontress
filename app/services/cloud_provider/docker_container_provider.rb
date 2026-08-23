@@ -23,12 +23,7 @@ module CloudProvider
       Frontress::SERVER_IMAGE
     end
 
-    # The seccomp profile srcds needs. A host set up by DockerHostSetupService
-    # has it; a laptop running `docker compose up` does not, and docker refuses
-    # to start a container whose profile file is missing. So it is used when it
-    # is there and skipped when it is not, rather than being a step every
-    # machine has to be prepared with -- which is the whole point of the
-    # docker-first deployment.
+    # The seccomp profile srcds needs on managed remote Docker hosts.
     SECCOMP_PROFILE = "/etc/docker/seccomp-tf2.json"
 
     sig { returns(T::Boolean) }
@@ -36,12 +31,22 @@ module CloudProvider
       File.exist?(SECCOMP_PROFILE)
     end
 
+    # Security flags for a locally executed `docker run`. The generic fallback
+    # keeps the old behaviour for subclasses that can see the managed-host
+    # profile. Local Docker overrides this because the Steam Linux Runtime uses
+    # pressure-vessel/bubblewrap and needs nested namespaces that Docker's
+    # default sandbox blocks.
+    sig { overridable.returns(T::Array[String]) }
+    def docker_run_security_argv
+      seccomp_profile? ? [ "--security-opt", "seccomp=#{SECCOMP_PROFILE}" ] : []
+    end
+
     # Argv for local exec: each element is one argv slot, no shell escaping.
     sig { params(cloud_server: CloudServer).returns(T::Array[String]) }
     def docker_run_argv(cloud_server)
       [
         "docker", "run", "-d", "--net=host",
-        *(seccomp_profile? ? [ "--security-opt", "seccomp=#{SECCOMP_PROFILE}" ] : []),
+        *docker_run_security_argv,
         "--name", container_name(cloud_server),
         *ContainerEnv.to_argv_pairs(env_hash(cloud_server)),
         docker_image
