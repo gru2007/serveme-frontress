@@ -21,6 +21,8 @@ class CloudServer < RemoteServer
 
   sig { returns(T.nilable(String)) }
   def host_hostname
+    return CloudProvider::Docker.public_host if cloud_provider == "docker"
+
     docker_host&.hostname || ip
   end
 
