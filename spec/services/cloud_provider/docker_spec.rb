@@ -7,11 +7,13 @@ RSpec.describe CloudProvider::Docker do
 
   describe "#create_server" do
     let(:cloud_server) { create(:cloud_server, cloud_provider: "docker", cloud_callback_token: "test-token", port: "27015") }
+    let(:success_status) { instance_double(Process::Status, success?: true) }
 
     before do
       allow(cloud_server).to receive(:cloud_ssh_public_key)
         .and_return("ssh-ed25519 AAAA test@cloud")
-      allow(provider).to receive(:system).and_return(true)
+      allow(provider).to receive(:docker_apparmor_enabled?).and_return(true)
+      allow(Open3).to receive(:capture2e).and_return([ "container-id\n", success_status ])
     end
 
     it "returns the container name as provider ID" do
@@ -19,11 +21,13 @@ RSpec.describe CloudProvider::Docker do
       expect(result).to eq("res-#{cloud_server.cloud_reservation_id}-cloud-#{cloud_server.id}")
     end
 
-    it "calls docker run with host networking and port env vars" do
+    it "calls docker run with host networking, Steam-runtime security, and port env vars" do
       provider.create_server(cloud_server)
 
-      expect(provider).to have_received(:system) do |*args|
+      expect(Open3).to have_received(:capture2e) do |*args|
         expect(args).to include("docker", "run", "-d", "--net=host")
+        expect(args).to include("--security-opt", "seccomp=unconfined")
+        expect(args).to include("--security-opt", "apparmor=unconfined")
         expect(args).to include("--name", "res-#{cloud_server.cloud_reservation_id}-cloud-#{cloud_server.id}")
         expect(args).to include("-e", "CALLBACK_URL=https://localhost/api/cloud_servers/#{cloud_server.id}/ready")
         expect(args).to include("-e", "CALLBACK_TOKEN=test-token")
@@ -37,13 +41,24 @@ RSpec.describe CloudProvider::Docker do
       end
     end
 
+    it "does not request an AppArmor profile when the Docker daemon does not use AppArmor" do
+      allow(provider).to receive(:docker_apparmor_enabled?).and_return(false)
+
+      provider.create_server(cloud_server)
+
+      expect(Open3).to have_received(:capture2e) do |*args|
+        expect(args).to include("--security-opt", "seccomp=unconfined")
+        expect(args).not_to include("apparmor=unconfined")
+      end
+    end
+
     context "with a non-default port" do
       let(:cloud_server) { create(:cloud_server, cloud_provider: "docker", cloud_callback_token: "test-token", port: "27025") }
 
       it "passes correct port env vars for non-default port" do
         provider.create_server(cloud_server)
 
-        expect(provider).to have_received(:system) do |*args|
+        expect(Open3).to have_received(:capture2e) do |*args|
           expect(args).to include("-e", "PORT=27025")
           expect(args).to include("-e", "TV_PORT=27030")
           expect(args).to include("-e", "SSH_PORT=22001")
@@ -64,7 +79,7 @@ RSpec.describe CloudProvider::Docker do
           .and_return("https://discord.com/api/webhooks/local/env")
 
         provider.create_server(cloud_server)
-        expect(provider).to have_received(:system) do |*args|
+        expect(Open3).to have_received(:capture2e) do |*args|
           expect(args).to include("-e", "DISCORD_STAC_WEBHOOK_URL=https://discord.com/api/webhooks/local/env")
         end
       end
@@ -75,7 +90,7 @@ RSpec.describe CloudProvider::Docker do
           .with(:discord, :stac_webhook_url).and_return("https://discord.com/api/webhooks/local/cred")
 
         provider.create_server(cloud_server)
-        expect(provider).to have_received(:system) do |*args|
+        expect(Open3).to have_received(:capture2e) do |*args|
           expect(args).to include("-e", "DISCORD_STAC_WEBHOOK_URL=https://discord.com/api/webhooks/local/cred")
         end
       end
@@ -86,7 +101,7 @@ RSpec.describe CloudProvider::Docker do
           .with(:discord, :stac_webhook_url).and_return(nil)
 
         provider.create_server(cloud_server)
-        expect(provider).to have_received(:system) do |*args|
+        expect(Open3).to have_received(:capture2e) do |*args|
           expect(args.grep(/DISCORD_STAC_WEBHOOK_URL/)).to be_empty
         end
       end
