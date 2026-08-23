@@ -107,8 +107,16 @@ LABEL service=serveme
 #   zip                      — local_zip_file_creator (Open3.capture3 "zip")
 #   ripgrep                  — log_streaming_service.rb shells out to `rg` for search
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y libpq5 libmaxminddb0 libyaml-0-2 openssh-client zip ripgrep && \
-    rm -rf /var/lib/apt/lists /var/cache/apt/archives
+    apt-get install --no-install-recommends -y \
+      curl \
+      libjemalloc2 \
+      libpq5 \
+      libmaxminddb0 \
+      libyaml-0-2 \
+      openssh-client \
+      zip \
+      ripgrep && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
 # docker CLI — CloudImageBuildWorker (EU only) shells out to `docker build`
 # and `docker push` to rebuild the tf2-cloud-server image, talking to the
