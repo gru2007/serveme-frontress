@@ -149,11 +149,19 @@ module CloudProvider
 
     sig { returns(String) }
     def callback_url
-      if ENV["CLOUD_CALLBACK_HOST"]
-        "https://#{ENV['CLOUD_CALLBACK_HOST']}/api/cloud_servers/#{@cloud_server.id}/ready"
+      callback_host = ENV["CLOUD_CALLBACK_HOST"].presence
+      base_url = if callback_host
+        if callback_host.start_with?("http://", "https://")
+          callback_host
+        else
+          scheme = SITE_URL.start_with?("http://") ? "http" : "https"
+          "#{scheme}://#{callback_host}"
+        end
       else
-        "https://#{SITE_HOST}/api/cloud_servers/#{@cloud_server.id}/ready"
+        SITE_URL
       end
+
+      "#{base_url.chomp('/')}/api/cloud_servers/#{@cloud_server.id}/ready"
     end
 
     sig { returns(T.nilable(String)) }
