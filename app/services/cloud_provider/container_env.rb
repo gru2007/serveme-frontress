@@ -150,7 +150,7 @@ module CloudProvider
     sig { returns(String) }
     def callback_url
       if ENV["CLOUD_CALLBACK_HOST"]
-        "http://#{ENV['CLOUD_CALLBACK_HOST']}/api/cloud_servers/#{@cloud_server.id}/ready"
+        "https://#{ENV['CLOUD_CALLBACK_HOST']}/api/cloud_servers/#{@cloud_server.id}/ready"
       else
         "https://#{SITE_HOST}/api/cloud_servers/#{@cloud_server.id}/ready"
       end
