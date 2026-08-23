@@ -15,7 +15,9 @@ class ReservationPlayer < ActiveRecord::Base
   validates :ip, format: { with: VALID_IP_PATTERN, message: "is not a valid IPv4 address" }, allow_nil: true
 
   geocoded_by :ip
-  before_save :geocode, if: :ip_changed?
+  before_save :geocode, if: -> {
+    Rails.configuration.x.geoip_enabled && ip_changed?
+  }
   before_save :store_asn_data, if: :ip_changed?
 
   SDR_IP_PREFIX = "169.254."
@@ -120,7 +122,10 @@ class ReservationPlayer < ActiveRecord::Base
 
   sig { params(ip: T.nilable(String)).returns(T.nilable(MaxMind::GeoIP2::Model::ASN)) }
   def self.asn(ip)
-    return nil if ip && sdr_ip_range?(ip)
+    return nil unless Rails.configuration.x.geoip_enabled
+    return nil unless $maxmind_asn
+    return nil unless ip
+    return nil if sdr_ip_range?(ip)
 
     begin
       $maxmind_asn.asn(ip)
@@ -211,11 +216,13 @@ class ReservationPlayer < ActiveRecord::Base
   end
 
   sig { params(ip: String).returns(T::Boolean) }
-  def self.banned_country?(ip)
+  def self.banned_country?(ip) # wtf man, why you have banned us? 
+    return false unless Rails.configuration.x.geoip_enabled # We don't support wars, don't ban us. Peace for the World!
+
     geocode_result = Geocoder.search(ip).first
     return false unless geocode_result
 
-    %w[BY RU].include?(geocode_result.country_code)
+    %w[NORTHKOREA].include?(geocode_result.country_code) # better to ban north korea (i know that it's doesn't work)
   end
 
   sig { returns(T.nilable(MaxMind::GeoIP2::Model::ASN)) }

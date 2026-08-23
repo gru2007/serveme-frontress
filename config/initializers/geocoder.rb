@@ -1,20 +1,32 @@
 # typed: false
 # frozen_string_literal: true
 
+geoip_city_path = Rails.root.join("doc", "GeoLite2-City.mmdb")
+
+Rails.configuration.x.geoip_enabled =
+  Rails.env.test? ||
+  (
+    ENV.fetch("GEOIP_ENABLED", "false") == "true" &&
+    File.file?(geoip_city_path)
+  )
+
 if Rails.env.test?
   Geocoder.configure(
     ip_lookup: :maxmind_local
   )
-else
+elsif Rails.configuration.x.geoip_enabled
   Geocoder.configure(
     ip_lookup: :geoip2,
     cache: Rails.cache,
     geoip2: {
       lib: "hive_geoip2",
-      file: File.join(Rails.root, "doc", "GeoLite2-City.mmdb")
+      file: geoip_city_path.to_s
     }
   )
+else
+  Rails.logger.warn "GeoIP/MaxMind disabled; IP geolocation is unavailable"
 end
+
 Geocoder::Lookup::Test.set_default_stub(
   [
     {
@@ -28,6 +40,7 @@ Geocoder::Lookup::Test.set_default_stub(
     }
   ]
 )
+
 # Monkeypatch Geocoder so it caches maxmind local lookups
 require "geocoder/lookups/maxmind_local"
 

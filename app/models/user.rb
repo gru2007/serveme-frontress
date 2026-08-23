@@ -21,7 +21,11 @@ class User < ActiveRecord::Base
   has_many :map_uploads
   has_one :file_upload_permission, dependent: :destroy
   geocoded_by :current_sign_in_ip
-  before_save :geocode, if: :current_sign_in_ip_changed_and_ipv4?
+  geocoded_by :current_sign_in_ip
+  before_save :geocode, if: -> {
+    Rails.configuration.x.geoip_enabled &&
+      current_sign_in_ip_changed_and_ipv4?
+  }
 
   sig { returns(T.nilable(String)) }
   def logs_tf_api_key
@@ -209,6 +213,7 @@ class User < ActiveRecord::Base
 
   sig { returns(T.nilable(Geocoder::Result::Base)) }
   def geocoded
+    return unless Rails.configuration.x.geoip_enabled
     return unless current_sign_in_ip_ipv4?
 
     @geocoded ||= Geocoder.search(current_sign_in_ip).try(:first)
