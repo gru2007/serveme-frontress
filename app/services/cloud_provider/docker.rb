@@ -177,14 +177,10 @@ module CloudProvider
 
     sig { returns(T::Boolean) }
     def docker_apparmor_enabled?
-      return @docker_apparmor_enabled unless @docker_apparmor_enabled.nil?
-
       output, status = Open3.capture2("docker", "info", "--format", "{{json .SecurityOptions}}")
-      @docker_apparmor_enabled = T.let(status.success? && output.include?("apparmor"), T.nilable(T::Boolean))
-      @docker_apparmor_enabled || false
+      status.success? && output.include?("apparmor")
     rescue StandardError => e
       Rails.logger.warn("Docker: could not detect AppArmor support: #{e.class}: #{e.message}")
-      @docker_apparmor_enabled = T.let(false, T.nilable(T::Boolean))
       false
     end
 
