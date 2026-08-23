@@ -30,8 +30,9 @@ describe ReservationCleanupWorker do
         allow(File).to receive(:exist?).and_call_original
         allow(FileUtils).to receive(:rm_f)
 
-        # Expect status update
+        # Expect status updates
         expect(reservation).to receive(:status_update).with("Zipping logs and demos of locally running server")
+        expect(reservation).to receive(:status_update).with("Finished zipping logs and demos")
 
         # Expect file chmod after zipping
         expect(File).to receive(:chmod).with(0o755, anything)
@@ -160,6 +161,7 @@ describe ReservationCleanupWorker do
           .and_return("")
 
         expect(reservation).to receive(:status_update).with("Downloading logs and demos from server")
+        expect(reservation).to receive(:status_update).with("Finished zipping logs and demos")
 
         # Should not attempt to download or zip
         expect(ssh_server).not_to receive(:copy_from_server)

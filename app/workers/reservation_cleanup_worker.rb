@@ -44,6 +44,10 @@ class ReservationCleanupWorker
     else
       raise "Unexpected server type: #{server.class.name}. Only LocalServer, SshServer, and CloudServer use async cleanup."
     end
+
+    # Always emit the final status, even when there was nothing to zip, so the
+    # reservation can reach the "Ended" state instead of hanging on "Zipping files"
+    reservation.status_update("Finished zipping logs and demos")
   end
 
   def zip_local_server_files
@@ -114,7 +118,6 @@ class ReservationCleanupWorker
     end
 
     File.chmod(0o755, zipfile_name_and_path)
-    reservation.status_update("Finished zipping logs and demos")
   end
 
   def copy_logs_to_destination

@@ -17,5 +17,6 @@ class LocalZipFileCreator < ZipFileCreator
     reservation.status_update("Zipping logs and demos of locally running server")
     _, stderr, status = T.unsafe(Open3).capture3("zip", "-j", zipfile_name_and_path.to_s, *files_to_zip)
     Rails.logger.error("Failed to create zipfile: #{stderr}") unless status.success?
+    reservation.status_update("Finished zipping logs and demos")
   end
 end
