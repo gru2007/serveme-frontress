@@ -10,6 +10,37 @@ RSpec.describe CloudProvider::ContainerEnv do
     described_class.build(cloud_server, ssh_public_key: "ssh-ed25519 AAAA test@serveme", mode: mode)
   end
 
+  describe "CALLBACK_URL" do
+    before do
+      allow(ENV).to receive(:[]).and_call_original
+      stub_const("SITE_URL", "https://site.example.org")
+    end
+
+    it "uses SITE_URL when CLOUD_CALLBACK_HOST is unset" do
+      allow(ENV).to receive(:[]).with("CLOUD_CALLBACK_HOST").and_return(nil)
+
+      expect(env["CALLBACK_URL"]).to eq("https://site.example.org/api/cloud_servers/#{cloud_server.id}/ready")
+    end
+
+    it "treats an empty CLOUD_CALLBACK_HOST as unset" do
+      allow(ENV).to receive(:[]).with("CLOUD_CALLBACK_HOST").and_return("")
+
+      expect(env["CALLBACK_URL"]).to eq("https://site.example.org/api/cloud_servers/#{cloud_server.id}/ready")
+    end
+
+    it "uses a bare callback host with the SITE_URL scheme" do
+      allow(ENV).to receive(:[]).with("CLOUD_CALLBACK_HOST").and_return("callback.example.org")
+
+      expect(env["CALLBACK_URL"]).to eq("https://callback.example.org/api/cloud_servers/#{cloud_server.id}/ready")
+    end
+
+    it "accepts a complete callback base URL" do
+      allow(ENV).to receive(:[]).with("CLOUD_CALLBACK_HOST").and_return("http://10.0.0.5:3000/")
+
+      expect(env["CALLBACK_URL"]).to eq("http://10.0.0.5:3000/api/cloud_servers/#{cloud_server.id}/ready")
+    end
+  end
+
   describe "ENABLE_PLUGINS" do
     it "is 1 when the reservation wants plugins" do
       expect(env["ENABLE_PLUGINS"]).to eq("1")
