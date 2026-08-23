@@ -109,6 +109,18 @@ fi
 
 # 3. server.cfg. Everything reservation-specific is in reservation.cfg, which
 # serveme writes; this is only what has to be true before that arrives.
+#
+# Anything that can live here rather than on the launcher command line does.
+# The dedicated launcher joins its whole argv into a 512 byte buffer and dies
+# with "command line too long, 512 max" the moment it does not fit -- and the
+# part of that budget we do not control (the game dir, the runtime, whatever
+# start_dedicated_tc2.sh prepends) is a good third of it.
+PORT="${PORT:-27015}"
+TV_PORT="${TV_PORT:-$((PORT + 5))}"
+CLIENT_PORT="${CLIENT_PORT:-40001}"
+STEAM_PORT="${STEAM_PORT:-30001}"
+RCON_PASSWORD="${RCON_PASSWORD:-changeme}"
+
 mkdir -p "$CFG_DIR"
 {
     echo 'hostname "Team Frontress"'
@@ -116,6 +128,11 @@ mkdir -p "$CFG_DIR"
     echo "rcon_password \"${RCON_PASSWORD:-changeme}\""
     echo 'log on'
     echo 'sv_logecho 1'
+    # SourceTV starts when a level loads, which is also when this file is
+    # exec'd, so the command line buys nothing here.
+    echo "tv_port ${TV_PORT}"
+    echo 'tv_maxclients 32'
+    echo 'tv_enable 1'
     echo 'tv_autorecord 1'
     echo 'sv_rcon_minfailuretime 1'
     echo 'sv_rcon_minfailures 20'
@@ -199,12 +216,7 @@ echo "Maps installed: $(count_bsp "$ROOT/$GAME_DIR/maps") in $GAME_DIR, $(count_
 
 # 6. Start the server.
 set +e
-PORT="${PORT:-27015}"
-TV_PORT="${TV_PORT:-$((PORT + 5))}"
-CLIENT_PORT="${CLIENT_PORT:-40001}"
-STEAM_PORT="${STEAM_PORT:-30001}"
 FAKEIP_FLAG="${ENABLE_FAKEIP:+-enablefakeip}"
-RCON_PASSWORD="${RCON_PASSWORD:-changeme}"
 
 cd "$ROOT"
 export SLR_SNIPER_PATH="${SLR_SNIPER_PATH:-$ROOT/SteamLinuxRuntime_sniper/run}"
@@ -224,22 +236,43 @@ trap graceful_shutdown TERM INT
 # The launcher runs the game inside the Steam Linux Runtime and swaps in the
 # server gameinfo. +ip and +sv_pure are ours to set here: the launcher only
 # applies its own defaults when the caller passes none.
-# rcon_password and the rcon failure limits go on the command line, not only
-# into server.cfg. server.cfg is exec'd by the game DLL when a level loads, so
-# a server that fails to load its first map has *no* rcon password at all --
-# and everything that talks to it (this site's readiness poll, the coordinator,
-# the healthcheck below) then hammers it with bad logins until srcds bans them
-# with the stock limits. Setting them here means RCON works from the moment the
-# socket is open, which is also what makes the map watchdog below possible.
-./start_dedicated_tc2.sh \
-    +ip 0.0.0.0 -port "$PORT" $FAKEIP_FLAG \
-    +clientport "$CLIENT_PORT" -steamport "$STEAM_PORT" \
-    +rcon_password "$RCON_PASSWORD" \
-    +sv_rcon_minfailuretime 1 +sv_rcon_minfailures 20 \
-    +sv_rcon_maxfailures 20 +sv_rcon_banpenalty 1 \
-    +map "$FIRST_MAP" +tv_port "$TV_PORT" +tv_maxclients 32 +tv_enable 1 \
-    ${GSLT:+ +sv_setsteamaccount "$GSLT"} \
-    "$@" &
+#
+# Only what genuinely cannot wait for the first level load belongs here -- the
+# sockets to bind, the map to boot into, the Steam login, and rcon_password.
+# That last one is not vanity: server.cfg is exec'd by the game DLL when a
+# level loads, so a server that fails to load its first map has *no* rcon
+# password at all, and the map watchdog below could neither see that nor fix
+# it. Everything else (the rcon failure limits, the SourceTV settings) is in
+# server.cfg, because the command line is a hard 512 bytes for the whole argv
+# and going over it does not degrade anything -- the launcher refuses to start.
+SRCDS_ARGS=(
+    +ip 0.0.0.0 -port "$PORT"
+    +clientport "$CLIENT_PORT" -steamport "$STEAM_PORT"
+    +rcon_password "$RCON_PASSWORD"
+    +map "$FIRST_MAP"
+)
+[ -n "$FAKEIP_FLAG" ] && SRCDS_ARGS+=("$FAKEIP_FLAG")
+[ -n "$GSLT" ] && SRCDS_ARGS+=(+sv_setsteamaccount "$GSLT")
+SRCDS_ARGS+=("$@")
+
+# What is left of the 512 after the launcher has prepended its own arguments
+# is not ours to know, so leave room for them and say so before the launcher
+# does: its own message names no argument and points at -debug, which is a
+# long way round to "the rcon password is too long". The password and the
+# Steam token are redacted -- this log is collected off the box.
+SRCDS_CMDLINE="${SRCDS_ARGS[*]}"
+echo "Server arguments, ${#SRCDS_CMDLINE} of the launcher's 512 bytes: $(
+    printf '%s' "$SRCDS_CMDLINE" |
+        sed -e 's/\(+rcon_password\) [^ ]*/\1 ***/' \
+            -e 's/\(+sv_setsteamaccount\) [^ ]*/\1 ***/'
+)"
+if [ "${#SRCDS_CMDLINE}" -gt 320 ]; then
+    echo "WARNING: that is close to the launcher's 512 byte limit, which it" \
+         "enforces by refusing to start ('command line too long, 512 max')." \
+         "A shorter rcon password is usually what is wanted."
+fi
+
+./start_dedicated_tc2.sh "${SRCDS_ARGS[@]}" &
 SRCDS_PID=$!
 
 # The coordinator agent, if this container is running a match. It reads the
