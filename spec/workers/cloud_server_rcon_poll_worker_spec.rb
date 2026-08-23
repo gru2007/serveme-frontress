@@ -26,7 +26,7 @@ describe CloudServerRconPollWorker do
 
     it "retries when rcon connection is refused" do
       allow_any_instance_of(CloudServer).to receive(:rcon_exec).with("status").and_raise(Errno::ECONNREFUSED)
-      expect(CloudServerRconPollWorker).to receive(:perform_in).with(3.seconds, reservation.id)
+      expect(CloudServerRconPollWorker).to receive(:perform_in).with(3.seconds, reservation.id, 2)
 
       described_class.new.perform(reservation.id)
 
@@ -35,7 +35,7 @@ describe CloudServerRconPollWorker do
 
     it "retries when rcon returns empty result" do
       allow_any_instance_of(CloudServer).to receive(:rcon_exec).with("status").and_return(nil)
-      expect(CloudServerRconPollWorker).to receive(:perform_in).with(3.seconds, reservation.id)
+      expect(CloudServerRconPollWorker).to receive(:perform_in).with(3.seconds, reservation.id, 2)
 
       described_class.new.perform(reservation.id)
 
@@ -44,7 +44,7 @@ describe CloudServerRconPollWorker do
 
     it "retries on SteamCondenser errors" do
       allow_any_instance_of(CloudServer).to receive(:rcon_exec).with("status").and_raise(SteamCondenser::Error.new("timeout"))
-      expect(CloudServerRconPollWorker).to receive(:perform_in).with(3.seconds, reservation.id)
+      expect(CloudServerRconPollWorker).to receive(:perform_in).with(3.seconds, reservation.id, 2)
 
       described_class.new.perform(reservation.id)
     end
@@ -71,6 +71,20 @@ describe CloudServerRconPollWorker do
       expect(CloudServerRconPollWorker).not_to receive(:perform_in)
 
       described_class.new.perform(reservation.id)
+    end
+
+    it "stops polling after the attempt cap so srcds does not ban us for the failed logins" do
+      allow_any_instance_of(CloudServer).to receive(:rcon_exec).with("status").and_return(nil)
+      expect(CloudServerRconPollWorker).not_to receive(:perform_in)
+
+      described_class.new.perform(reservation.id, described_class::MAX_ATTEMPTS)
+    end
+
+    it "backs off once the fast attempts are used up" do
+      allow_any_instance_of(CloudServer).to receive(:rcon_exec).with("status").and_return(nil)
+      expect(CloudServerRconPollWorker).to receive(:perform_in).with(15.seconds, reservation.id, 12)
+
+      described_class.new.perform(reservation.id, 11)
     end
 
     it "gives up polling after too long" do

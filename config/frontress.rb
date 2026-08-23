@@ -66,8 +66,11 @@ module Frontress
   # outdated", which is how a fleet restarts itself.
   SERVER_VERSION = ENV["FRONTRESS_SERVER_VERSION"].presence&.to_i
 
-  # The map a server boots on when a reservation does not name one. Upstream
-  # used ctf_turbine, which is a Team Fortress map we do not ship.
+  # The map a server boots on when a reservation does not name one, and the one
+  # a server falls back to when its first map will not load. It is one of ours
+  # so that it is present on every build, but a reservation is free to name a
+  # Team Fortress map: the image keeps TF2's content, maps included, and
+  # gameinfo mounts it.
   DEFAULT_MAP = ENV.fetch("FRONTRESS_DEFAULT_MAP", "koth_product_final").freeze
 
   # Where clients download maps from. Empty leaves sv_downloadurl unset, which

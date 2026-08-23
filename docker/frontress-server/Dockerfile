@@ -83,13 +83,18 @@ WORKDIR /home/frontress/hlserver
 #
 # Both are anonymous downloads. steamcmd occasionally fails the first attempt
 # with 0x426, so each gets one retry.
+#
+# TF2's maps are kept. gameinfo_server.txt mounts ../tf2/tf as a search path,
+# so they are part of the pool a server can be asked to run -- our own maps are
+# an addition to that pool, not a replacement for it. An earlier revision
+# deleted them here to save a few gigabytes; the cost was that any reservation
+# whose first map came from TF2 booted into no level at all, which takes the
+# whole server down with it (no level means the game DLL never execs
+# server.cfg, so the server has no rcon password either).
 RUN (/usr/games/steamcmd +force_install_dir /home/frontress/hlserver/SteamLinuxRuntime_sniper +login anonymous +app_update 1628350 validate +quit || \
      /usr/games/steamcmd +force_install_dir /home/frontress/hlserver/SteamLinuxRuntime_sniper +login anonymous +app_update 1628350 validate +quit) \
     && (/usr/games/steamcmd +force_install_dir /home/frontress/hlserver/tf2 +login anonymous +app_update 232250 +quit || \
-        /usr/games/steamcmd +force_install_dir /home/frontress/hlserver/tf2 +login anonymous +app_update 232250 +quit) \
-    # The server serves our maps, not TF2's, and the client downloads what it
-    # is missing. Dropping them saves several gigabytes per host.
-    && rm -f /home/frontress/hlserver/tf2/tf/maps/*.bsp
+        /usr/games/steamcmd +force_install_dir /home/frontress/hlserver/tf2 +login anonymous +app_update 232250 +quit)
 
 COPY --from=rcon-build --chown=frontress:frontress /tmp/rcon/rcon /home/frontress/hlserver/rcon
 

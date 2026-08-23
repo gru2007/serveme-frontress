@@ -12,6 +12,7 @@ set -e
 #   5. tell serveme we are reachable; wait for it to push reservation.cfg
 #   6. make sure the first map exists locally
 #   7. start the server, and the coordinator agent if this is a match
+#   8. wait until it is actually on a map, then tell serveme it is ready
 #
 # Everything the server needs per match -- password, ruleset, match tag -- is
 # in reservation.cfg. Nothing in this script decides any of it.
@@ -167,11 +168,12 @@ if [ -n "$MAPLIST_URL" ]; then
     fi
 fi
 
+DEFAULT_MAP="${DEFAULT_MAP:-koth_product_final}"
 FIRST_MAP_FILE="$CFG_DIR/first_map.txt"
 if [ -f "$FIRST_MAP_FILE" ]; then
     FIRST_MAP="$(tr -d '\r\n ' < "$FIRST_MAP_FILE")"
 fi
-FIRST_MAP="${FIRST_MAP:-${DEFAULT_MAP:-koth_product_final}}"
+FIRST_MAP="${FIRST_MAP:-$DEFAULT_MAP}"
 
 MAP_PATH="$ROOT/$GAME_DIR/maps/${FIRST_MAP}.bsp"
 if [ ! -f "$MAP_PATH" ] && [ -n "$FASTDL_URL" ]; then
@@ -183,6 +185,18 @@ if [ ! -f "$MAP_PATH" ] && [ -n "$FASTDL_URL" ]; then
     }
 fi
 
+# How many maps this build can actually serve, from both search paths gameinfo
+# mounts: ours and Team Fortress'. A missing first map is the one boot failure
+# with no useful message of its own -- the engine says "not found or invalid"
+# and stops -- so a count of zero on either side is worth seeing in the log.
+# Maps can also come out of a VPK, so this is a hint, not a verdict, and
+# nothing branches on it: the watchdog in step 8 is what recovers.
+count_bsp() {
+    ls "$1"/*.bsp 2>/dev/null | wc -l | tr -d ' '
+}
+echo "First map: $FIRST_MAP (default $DEFAULT_MAP)"
+echo "Maps installed: $(count_bsp "$ROOT/$GAME_DIR/maps") in $GAME_DIR, $(count_bsp "$ROOT/tf2/tf/maps") from Team Fortress"
+
 # 6. Start the server.
 set +e
 PORT="${PORT:-27015}"
@@ -190,6 +204,7 @@ TV_PORT="${TV_PORT:-$((PORT + 5))}"
 CLIENT_PORT="${CLIENT_PORT:-40001}"
 STEAM_PORT="${STEAM_PORT:-30001}"
 FAKEIP_FLAG="${ENABLE_FAKEIP:+-enablefakeip}"
+RCON_PASSWORD="${RCON_PASSWORD:-changeme}"
 
 cd "$ROOT"
 export SLR_SNIPER_PATH="${SLR_SNIPER_PATH:-$ROOT/SteamLinuxRuntime_sniper/run}"
@@ -209,9 +224,19 @@ trap graceful_shutdown TERM INT
 # The launcher runs the game inside the Steam Linux Runtime and swaps in the
 # server gameinfo. +ip and +sv_pure are ours to set here: the launcher only
 # applies its own defaults when the caller passes none.
+# rcon_password and the rcon failure limits go on the command line, not only
+# into server.cfg. server.cfg is exec'd by the game DLL when a level loads, so
+# a server that fails to load its first map has *no* rcon password at all --
+# and everything that talks to it (this site's readiness poll, the coordinator,
+# the healthcheck below) then hammers it with bad logins until srcds bans them
+# with the stock limits. Setting them here means RCON works from the moment the
+# socket is open, which is also what makes the map watchdog below possible.
 ./start_dedicated_tc2.sh \
     +ip 0.0.0.0 -port "$PORT" $FAKEIP_FLAG \
     +clientport "$CLIENT_PORT" -steamport "$STEAM_PORT" \
+    +rcon_password "$RCON_PASSWORD" \
+    +sv_rcon_minfailuretime 1 +sv_rcon_minfailures 20 \
+    +sv_rcon_maxfailures 20 +sv_rcon_banpenalty 1 \
     +map "$FIRST_MAP" +tv_port "$TV_PORT" +tv_maxclients 32 +tv_enable 1 \
     ${GSLT:+ +sv_setsteamaccount "$GSLT"} \
     "$@" &
@@ -231,26 +256,75 @@ if [ -n "$GC_URL" ] && [ -n "$GC_SECRET" ]; then
         -log-listen "127.0.0.1:$((PORT + 100))" &
 fi
 
-# 7. Wait for the game port, then tell serveme the server is up.
-if [ -n "$CALLBACK_URL" ]; then
-    echo "Waiting for the server to listen on port $PORT..."
-    for i in $(seq 1 180); do
-        if ss -tuln | grep -q ":${PORT}[[:space:]]"; then
-            for attempt in 1 2 3; do
-                if curl -sf --connect-timeout 5 --max-time 10 -X POST "$CALLBACK_URL" \
-                    -H "X-Callback-Token: ${CALLBACK_TOKEN}" \
-                    -H "Content-Type: application/json" \
-                    -d "{\"status\":\"tf2_ready\",\"port\":\"$PORT\"}"; then
-                    echo "Server ready callback successful"
-                    break
-                else
-                    echo "Server ready callback attempt $attempt failed, retrying in 5s..."
-                    sleep 5
-                fi
-            done
+# 7. Wait for the game port, make sure a level actually loaded, then tell
+# serveme the server is up.
+
+# The map srcds is on, from its own status output. Empty means it is running
+# but has no level -- which is what a missing or corrupt first map leaves
+# behind, and it is indistinguishable from "still booting" from the outside.
+current_map() {
+    [ -x "$ROOT/rcon" ] || return 0
+    timeout 5 "$ROOT/rcon" -H 127.0.0.1 -p "$PORT" -P "$RCON_PASSWORD" status 2>/dev/null |
+        sed -n 's/^map *: *\([^ ]*\).*/\1/p' | head -1
+}
+
+echo "Waiting for the server to listen on port $PORT..."
+PORT_UP=0
+for i in $(seq 1 180); do
+    if ss -tuln | grep -q ":${PORT}[[:space:]]"; then
+        PORT_UP=1
+        break
+    fi
+    sleep 1
+done
+
+# A first map the payload does not have leaves the server with no level at all:
+# the game DLL execs server.cfg -- and so reservation.cfg -- on level init, so
+# nothing about the reservation is applied, no player can connect, and the site
+# waits for a readiness that never comes. The default map ships with every
+# build, so fall back to it rather than sitting there.
+MAP_OK=0
+if [ "$PORT_UP" = 1 ] && [ -x "$ROOT/rcon" ]; then
+    for attempt in $(seq 1 20); do
+        MAP_NOW="$(current_map)"
+        if [ -n "$MAP_NOW" ]; then
+            echo "Server is on map $MAP_NOW"
+            MAP_OK=1
             break
         fi
-        sleep 1
+        sleep 2
+    done
+
+    if [ "$MAP_OK" != 1 ] && [ "$FIRST_MAP" != "$DEFAULT_MAP" ]; then
+        echo "WARNING: the server never loaded $FIRST_MAP, falling back to $DEFAULT_MAP"
+        timeout 5 "$ROOT/rcon" -H 127.0.0.1 -p "$PORT" -P "$RCON_PASSWORD" \
+            changelevel "$DEFAULT_MAP" >/dev/null 2>&1
+        for attempt in $(seq 1 20); do
+            MAP_NOW="$(current_map)"
+            if [ -n "$MAP_NOW" ]; then
+                echo "Server is on map $MAP_NOW"
+                MAP_OK=1
+                break
+            fi
+            sleep 2
+        done
+    fi
+
+    [ "$MAP_OK" = 1 ] || echo "WARNING: the server is listening but has no map loaded"
+fi
+
+if [ -n "$CALLBACK_URL" ] && [ "$PORT_UP" = 1 ]; then
+    for attempt in 1 2 3; do
+        if curl -sf --connect-timeout 5 --max-time 10 -X POST "$CALLBACK_URL" \
+            -H "X-Callback-Token: ${CALLBACK_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\":\"tf2_ready\",\"port\":\"$PORT\"}"; then
+            echo "Server ready callback successful"
+            break
+        else
+            echo "Server ready callback attempt $attempt failed, retrying in 5s..."
+            sleep 5
+        fi
     done
 fi
 

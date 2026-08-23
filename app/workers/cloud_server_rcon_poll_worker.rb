@@ -8,7 +8,20 @@ class CloudServerRconPollWorker
 
   MAX_POLL_TIME = 2.minutes
 
-  def perform(reservation_id)
+  # How often to ask, and how many times.
+  #
+  # Every poll is an RCON login, and a server that is up but has no rcon
+  # password yet -- one whose first map failed to load, so server.cfg was never
+  # exec'd -- answers every one of them with a failure. srcds counts those and
+  # bans the source, so an unbounded three-second poll does not just waste
+  # time: it locks this site out of the server it is waiting for. Ask quickly
+  # while a healthy server would still be loading, then slowly, then stop.
+  FAST_POLL_ATTEMPTS = 10
+  FAST_POLL_INTERVAL = 3.seconds
+  SLOW_POLL_INTERVAL = 15.seconds
+  MAX_ATTEMPTS = 30
+
+  def perform(reservation_id, attempt = 1)
     reservation = Reservation.find_by(id: reservation_id)
     return unless reservation
     return if reservation.provisioned?
@@ -28,15 +41,25 @@ class CloudServerRconPollWorker
       # Server not ready yet, will retry
     end
 
+    if attempt >= MAX_ATTEMPTS
+      Rails.logger.warn "CloudServerRconPollWorker: Server #{server.id} rcon not responding after #{attempt} attempts, giving up"
+      reservation.status_update("Server did not answer RCON, check the server console")
+      return
+    end
+
     if too_long_since_tf2_ready?(server)
       Rails.logger.warn "CloudServerRconPollWorker: Server #{server.id} rcon not responding after #{MAX_POLL_TIME}, giving up"
       return
     end
 
-    CloudServerRconPollWorker.perform_in(3.seconds, reservation_id)
+    CloudServerRconPollWorker.perform_in(poll_interval(attempt), reservation_id, attempt + 1)
   end
 
   private
+
+  def poll_interval(attempt)
+    attempt < FAST_POLL_ATTEMPTS ? FAST_POLL_INTERVAL : SLOW_POLL_INTERVAL
+  end
 
   def mark_ready!(reservation, server)
     # Use update_all with a guard to prevent duplicate "TF2 server ready" messages
