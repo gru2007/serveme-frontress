@@ -22,10 +22,17 @@ test: &test
   pool: 5
   timeout: 5000
 
+# DATABASE_URL, when set, overrides all of this -- that is Rails' own rule and
+# it is what the Kamal deploys use. The parts below are for docker compose,
+# where assembling a URL out of a password variable inside YAML is worse than
+# passing the pieces.
 production:
   adapter: postgresql
-  database: serveme_production
-  username: serveme
+  database: <%= ENV.fetch("POSTGRES_DB", "serveme_production") %>
+  username: <%= ENV.fetch("POSTGRES_USER", "serveme") %>
+  password: <%= ENV["POSTGRES_PASSWORD"] %>
+  host: <%= ENV["POSTGRES_HOST"] %>
+  port: <%= ENV.fetch("POSTGRES_PORT", 5432) %>
   encoding: unicode
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 12 } %>
   timeout: 5000

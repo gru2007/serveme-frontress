@@ -10,8 +10,8 @@ unless Rake::Task.task_defined?("maxmind:fetch")
   namespace :maxmind do
     desc "Download fresh GeoLite2 databases from MaxMind into doc/"
     task fetch: :environment do
-      license_key = Rails.application.credentials.dig(:maxmind, :license_key)
-      raise "Missing maxmind.license_key in Rails credentials. Add it via: rails credentials:edit" if license_key.blank?
+      license_key = ENV["MAXMIND_LICENSE_KEY"].presence || Rails.application.credentials.dig(:maxmind, :license_key)
+      raise "Missing MaxMind license key. Set MAXMIND_LICENSE_KEY, or add maxmind.license_key via: rails credentials:edit" if license_key.blank?
 
       Dir.mktmpdir("maxmind-fetch") do |tmp|
         %w[GeoLite2-ASN GeoLite2-City].each do |edition|

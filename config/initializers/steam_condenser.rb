@@ -1,6 +1,4 @@
 # typed: strict
 # frozen_string_literal: true
 
-if Rails.application.credentials.dig(:steam, :api_key).present?
-  SteamCondenser::Community::WebApi.api_key = Rails.application.credentials.dig(:steam, :api_key)
-end
+SteamCondenser::Community::WebApi.api_key = STEAM_API_KEY if STEAM_API_KEY.present?

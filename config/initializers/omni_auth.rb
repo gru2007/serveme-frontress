@@ -7,7 +7,7 @@ if Rails.env.development?
 end
 
 Rails.application.config.middleware.use OmniAuth::Builder do
-  provider :steam, Rails.application.credentials.dig(:steam, :api_key)
+  provider :steam, STEAM_API_KEY
 end
 
 require "openid/fetchers"

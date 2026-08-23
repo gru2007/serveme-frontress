@@ -46,3 +46,6 @@ discord_bot/config.yml
 
 # Local reservation server logs (synced from production for dev)
 /server_logs/
+
+# docker compose configuration, contains secrets
+/.env
