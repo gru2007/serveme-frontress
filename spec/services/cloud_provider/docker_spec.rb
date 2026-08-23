@@ -86,7 +86,6 @@ RSpec.describe CloudProvider::Docker do
 
       it "falls back to the discord.stac_webhook_url credential when ENV is unset" do
         allow(ENV).to receive(:[]).with("DISCORD_STAC_WEBHOOK_URL").and_return(nil)
-        allow(Rails.application.credentials).to receive(:dig).and_call_original
         allow(Rails.application.credentials).to receive(:dig)
           .with(:discord, :stac_webhook_url).and_return("https://discord.com/api/webhooks/local/cred")
 
