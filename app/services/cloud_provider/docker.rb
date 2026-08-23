@@ -104,6 +104,20 @@ module CloudProvider
       container_count_during(starts_at, ends_at) < max_containers
     end
 
+    # Steam Linux Runtime 3 launches the dedicated server through
+    # pressure-vessel/bubblewrap. That inner sandbox creates user/mount
+    # namespaces, which Docker's default seccomp profile blocks. On hosts where
+    # the Docker daemon uses AppArmor (notably Ubuntu/Debian), docker-default
+    # blocks the same operation as well. Relax only those two outer-container
+    # policies for the game server; this is deliberately not --privileged and
+    # does not add CAP_SYS_ADMIN.
+    sig { override.returns(T::Array[String]) }
+    def docker_run_security_argv
+      args = [ "--security-opt", "seccomp=unconfined" ]
+      args.concat([ "--security-opt", "apparmor=unconfined" ]) if docker_apparmor_enabled?
+      args
+    end
+
     sig { override.params(cloud_server: CloudServer).returns(String) }
     def create_server(cloud_server)
       Rails.logger.info "Docker: Creating container for cloud_server #{cloud_server.id}"
@@ -160,6 +174,19 @@ module CloudProvider
     end
 
     private
+
+    sig { returns(T::Boolean) }
+    def docker_apparmor_enabled?
+      return @docker_apparmor_enabled unless @docker_apparmor_enabled.nil?
+
+      output, status = Open3.capture2("docker", "info", "--format", "{{json .SecurityOptions}}")
+      @docker_apparmor_enabled = T.let(status.success? && output.include?("apparmor"), T.nilable(T::Boolean))
+      @docker_apparmor_enabled || false
+    rescue StandardError => e
+      Rails.logger.warn("Docker: could not detect AppArmor support: #{e.class}: #{e.message}")
+      @docker_apparmor_enabled = T.let(false, T.nilable(T::Boolean))
+      false
+    end
 
     sig { returns(String) }
     def detect_host_ip
