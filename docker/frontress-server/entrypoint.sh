@@ -5,12 +5,13 @@ set -e
 #
 # The order matters and is the same every time:
 #
-#   1. SSH, so serveme can push configs and collect logs and demos
-#   2. check the game payload is the build the site expects
-#   3. write server.cfg, which execs reservation.cfg
-#   4. tell serveme we are reachable; wait for it to push reservation.cfg
-#   5. make sure the first map exists locally
-#   6. start the server, and the coordinator agent if this is a match
+#   1. make SteamCMD's client libraries visible where Source expects them
+#   2. SSH, so serveme can push configs and collect logs and demos
+#   3. check the game payload is the build the site expects
+#   4. write server.cfg, which execs reservation.cfg
+#   5. tell serveme we are reachable; wait for it to push reservation.cfg
+#   6. make sure the first map exists locally
+#   7. start the server, and the coordinator agent if this is a match
 #
 # Everything the server needs per match -- password, ruleset, match tag -- is
 # in reservation.cfg. Nothing in this script decides any of it.
@@ -18,6 +19,47 @@ set -e
 GAME_DIR="${GAME_DIR:-tc2}"
 ROOT="$HOME/hlserver"
 CFG_DIR="$ROOT/$GAME_DIR/cfg"
+
+# Source dedicated servers still look for Steam's client library under
+# ~/.steam/sdk64 even when SteamCMD installed it elsewhere. Ubuntu's steamcmd
+# package currently puts it under ~/.local/share/Steam/steamcmd; tarball-based
+# installs commonly use ~/.steam/steamcmd. Repair the SDK links on every boot
+# so a SteamCMD update cannot silently leave the container unable to initialise
+# SteamGameServer.
+ensure_steamclient_links() {
+    local steamcmd_root=""
+    local candidate
+
+    for candidate in \
+        "$HOME/.local/share/Steam/steamcmd" \
+        "$HOME/.steam/steamcmd"
+    do
+        if [ -f "$candidate/linux64/steamclient.so" ]; then
+            steamcmd_root="$candidate"
+            break
+        fi
+    done
+
+    if [ -z "$steamcmd_root" ]; then
+        echo "ERROR: SteamCMD steamclient.so not found; checked ~/.local/share/Steam/steamcmd and ~/.steam/steamcmd" >&2
+        return 1
+    fi
+
+    mkdir -p "$HOME/.steam/sdk64"
+    ln -sfn "$steamcmd_root/linux64/steamclient.so" "$HOME/.steam/sdk64/steamclient.so"
+
+    if [ -f "$steamcmd_root/linux32/steamclient.so" ]; then
+        mkdir -p "$HOME/.steam/sdk32"
+        ln -sfn "$steamcmd_root/linux32/steamclient.so" "$HOME/.steam/sdk32/steamclient.so"
+    fi
+
+    if [ ! -e "$HOME/.steam/sdk64/steamclient.so" ]; then
+        echo "ERROR: failed to provision ~/.steam/sdk64/steamclient.so" >&2
+        return 1
+    fi
+}
+
+ensure_steamclient_links
 
 # 1. SSH for remote file management
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
