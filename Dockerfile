@@ -16,9 +16,17 @@ WORKDIR /rails
 
 # Install base packages. Pre-create dirs that the final-stage COPYs would otherwise materialize with build-time mtimes (BuildKit --link parent-dir reproducibility quirk).
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 libvips  && \
-    rm -rf /var/lib/apt/lists /var/cache/apt/archives && \
-    mkdir -p /var/cache/bootsnap /rails/public/assets
+    apt-get install --no-install-recommends -y \
+      build-essential \
+      git \
+      pkg-config \
+      libmaxminddb0 \
+      libmaxminddb-dev \
+      libpq-dev \
+      libyaml-dev \
+      nodejs \
+      npm && \
+    rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Set production environment. LD_PRELOAD activates jemalloc for the Ruby process.
 ENV RAILS_ENV="production" \
@@ -54,6 +62,14 @@ RUN --mount=type=cache,target=/usr/local/bundle/ruby/4.0.0/cache,sharing=locked 
 
 # Copy application code
 COPY . .
+
+# Tailwind's standalone v4 binary embeds Bun, which crashes on
+# CPUs/VMs where AVX is unavailable. Use the npm/Node CLI instead.
+RUN npm install --prefix /opt/tailwind \
+      tailwindcss@4.3.3 \
+      @tailwindcss/cli@4.3.3
+
+ENV TAILWINDCSS_INSTALL_DIR="/opt/tailwind/node_modules/.bin"
 
 # Skip `bootsnap precompile app/ lib/` — churns the code layer for ~200ms boot.
 
