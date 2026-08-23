@@ -11,13 +11,7 @@ end
 # container started for one match is what this site is for.
 json.servers((@local_docker ? [ :local_docker ] : []) + (@docker_hosts || []).to_a + @servers.to_a) do |item|
   if item == :local_docker
-    json.id CloudProvider::Docker::LOCAL_VIRTUAL_SERVER_ID
-    json.name "Local (Docker)"
-    json.flag "eu"
-    json.ip SITE_HOST
-    json.port "27015"
-    json.ip_and_port "#{SITE_HOST}:27015"
-    json.sdr false
+    json.merge! CloudProvider::Docker.virtual_server_entry.except(:resolved_ip, :latitude, :longitude)
   elsif item.is_a?(DockerHost)
     json.id item.virtual_server_id
     json.name "#{item.city} (Docker)"

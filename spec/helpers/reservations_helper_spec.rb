@@ -27,6 +27,32 @@ describe ReservationsHelper do
     end
   end
 
+  describe "#free_servers_json" do
+    let(:reservation) { Reservation.new(starts_at: Time.current, ends_at: 2.hours.from_now) }
+
+    before do
+      allow(helper).to receive(:free_server_limit_reached_for_reservation?).and_return(false)
+      allow(helper).to receive(:free_servers).and_return([])
+      allow(helper).to receive(:free_docker_hosts).and_return([])
+      helper.instance_variable_set(:@reservation, reservation)
+    end
+
+    it "offers a container on this machine when local docker has capacity" do
+      allow(CloudProvider::Docker).to receive(:available_during?).and_return(true)
+
+      entry = JSON.parse(helper.free_servers_json).first
+
+      expect(entry["id"]).to eq(CloudProvider::Docker::LOCAL_VIRTUAL_SERVER_ID)
+      expect(entry["text"]).to eq("Local (Docker)")
+    end
+
+    it "offers nothing when local docker is disabled or full" do
+      allow(CloudProvider::Docker).to receive(:available_during?).and_return(false)
+
+      expect(JSON.parse(helper.free_servers_json)).to eq([])
+    end
+  end
+
   describe "#starts_at" do
     it "parses a future starts_at string from params" do
       future = 1.hour.from_now

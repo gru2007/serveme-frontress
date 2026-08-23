@@ -24,8 +24,7 @@ module Api
       @reservation = new_reservation
       @servers = free_servers.where(sdr: false)
       @docker_hosts = free_docker_hosts
-      @local_docker = CloudProvider::Docker.available_during?(@reservation.starts_at || Time.current,
-                                                              @reservation.ends_at || 2.hours.from_now)
+      @local_docker = local_docker_available?
       render :find_servers
     end
 

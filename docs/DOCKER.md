@@ -61,6 +61,11 @@ in the container may use the socket:
 getent group docker | cut -d: -f3
 ```
 
+That number is not optional. Without it the containers run as a user the docker
+socket does not admit, every reservation fails with `permission denied while
+trying to connect to the docker API`, and `bin/rails frontress:doctor` says
+`Local docker: UNUSABLE`.
+
 Two more values matter, because a game server container runs on the **host's**
 network and cannot reach this app by its compose-internal name:
 

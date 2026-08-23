@@ -48,7 +48,7 @@ module ApplicationHelper
 
   sig { returns(Integer) }
   def total_premium_server_count
-    @total_premium_server_count ||= total_donator_server_count + docker_hosts_total_slots - (SiteSetting.free_server_limit || 0)
+    @total_premium_server_count ||= total_donator_server_count + container_slots_total - (SiteSetting.free_server_limit || 0)
   end
 
   sig { returns(Integer) }
@@ -73,6 +73,32 @@ module ApplicationHelper
   def docker_hosts_available_during(starts_at, ends_at)
     counts = DockerHost.container_counts_during(starts_at, ends_at)
     DockerHost.active.sum { |dh| [ T.must(dh.max_containers) - counts.fetch(dh.id.to_s, 0), 0 ].max }
+  end
+
+  # The local-container option as a ping-table row, or nil when this machine
+  # does not run containers. Ping tables list one row per address, so it is
+  # dropped when a real server already answers on the same address.
+  sig { params(taken_addresses: T::Array[T.nilable(String)]).returns(T.nilable(T::Hash[Symbol, T.untyped])) }
+  def local_docker_ping_entry(taken_addresses = [])
+    return nil unless CloudProvider::Docker.enabled?
+
+    entry = CloudProvider::Docker.virtual_server_entry
+    return nil if taken_addresses.compact.include?(entry[:ip])
+
+    entry
+  end
+
+  # Container capacity, wherever it lives: remote docker hosts plus this
+  # machine's own daemon. The counters used to ask only about the docker_hosts
+  # table, so a site whose only capacity is local containers advertised zero.
+  sig { returns(Integer) }
+  def container_slots_total
+    @container_slots_total ||= docker_hosts_total_slots + CloudProvider::Docker.total_slots
+  end
+
+  sig { params(starts_at: T.untyped, ends_at: T.untyped).returns(Integer) }
+  def container_slots_available_during(starts_at, ends_at)
+    docker_hosts_available_during(starts_at, ends_at) + CloudProvider::Docker.slots_available_during(starts_at, ends_at)
   end
 
   # Upstream runs four sites and branches on which one you are looking at:

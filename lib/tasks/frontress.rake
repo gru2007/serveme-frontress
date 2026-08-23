@@ -1,6 +1,30 @@
 # frozen_string_literal: true
 
 namespace :frontress do
+  # Can this process actually start a container? The two ways it cannot are a
+  # socket it may not open and an image that does not exist, and both look
+  # identical from the reservation page: "failed to create server".
+  def local_docker_status
+    return "off" unless CloudProvider::Docker.enabled?
+
+    require "open3"
+    out, status = Open3.capture2e("docker", "version", "--format", "{{.Server.Version}}")
+    unless status.success?
+      hint = out.to_s.strip.lines.last.to_s.strip
+      hint += " (set DOCKER_GID in .env to the host's docker group)" if hint.include?("permission denied")
+      return "UNUSABLE: #{hint}"
+    end
+
+    image, image_status = Open3.capture2e("docker", "image", "inspect", "--format", "{{.Id}}", Frontress::SERVER_IMAGE)
+    unless image_status.success?
+      return "daemon #{out.strip}, but the image is not pulled yet (#{image.to_s.strip.lines.last.to_s.strip})"
+    end
+
+    "daemon #{out.strip}, image present (max #{CloudProvider::Docker.max_containers} containers)"
+  rescue Errno::ENOENT
+    "UNUSABLE: no docker CLI in this container"
+  end
+
   # Where the SSH key comes from, which is the difference between "servers can
   # be configured" and a provisioning failure with a confusing message.
   def ssh_key_source
@@ -29,7 +53,7 @@ namespace :frontress do
       "Maps known" => MapUpload.available_maps.size,
       "Uploads" => Frontress.storage_service,
       "SSH key" => ssh_key_source,
-      "Local docker" => CloudProvider::Docker.enabled? ? "on (max #{CloudProvider::Docker.max_containers} containers)" : "off",
+      "Local docker" => local_docker_status,
       "Container sees us as" => ENV["DOCKER_HOST_IP"].presence || "(DOCKER_HOST_IP unset)",
       "Callback host" => ENV["CLOUD_CALLBACK_HOST"].presence || SITE_HOST,
       "Remote docker hosts" => DockerHost.active.count,

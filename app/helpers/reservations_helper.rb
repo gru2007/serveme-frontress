@@ -19,6 +19,7 @@ module ReservationsHelper
     @reservation = new_reservation
     @servers = free_servers
     @docker_hosts = free_docker_hosts
+    @local_docker = local_docker_available?
     render :find_servers
   end
 
@@ -28,6 +29,7 @@ module ReservationsHelper
     @reservation = reservation
     @servers = free_servers
     @docker_hosts = free_docker_hosts
+    @local_docker = local_docker_available?
     render :find_servers
   end
 
@@ -129,6 +131,19 @@ module ReservationsHelper
     end
   end
 
+  # Whether a container can be started on this machine for the selected times.
+  # Same shape of question as free_docker_hosts, for the host that is not in
+  # the docker_hosts table because it is the one this app runs on.
+  sig { returns(T::Boolean) }
+  def local_docker_available?
+    T.bind(self, T.untyped)
+    return false if free_server_limit_reached_for_reservation?
+
+    s = @reservation&.starts_at || Time.current
+    e = @reservation&.ends_at || 2.hours.from_now
+    CloudProvider::Docker.available_during?(s, e)
+  end
+
   sig { returns(T::Boolean) }
   def free_server_limit_reached_for_reservation?
     T.bind(self, T.untyped)
@@ -150,7 +165,16 @@ module ReservationsHelper
       { id: "dh-#{dh.id}", text: "#{dh.city} (#{dh.hostname})", flag: dh.location&.flag, ip: dh.hostname, ip_and_port: "#{dh.hostname}:#{dh.start_port}" }
     end
 
-    (docker_hosts_json + servers_json).to_json
+    # Containers here come first, for the same reason they do in the API: a
+    # container started for one match is what this site is for.
+    local_docker_json = if local_docker_available?
+      entry = CloudProvider::Docker.virtual_server_entry
+      [ { id: entry[:id], text: entry[:name], flag: entry[:flag], ip: entry[:ip], ip_and_port: entry[:ip_and_port] } ]
+    else
+      []
+    end
+
+    (local_docker_json + docker_hosts_json + servers_json).to_json
   end
 
   sig { returns(T.untyped) }

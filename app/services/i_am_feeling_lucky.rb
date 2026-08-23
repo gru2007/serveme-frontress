@@ -101,6 +101,13 @@ class IAmFeelingLucky
     @available_docker_host ||= best_matching_docker_host(DockerHost.available_during(starts_at, ends_at))
   end
 
+  # Local-docker fallback: this machine's own daemon has no docker_hosts row,
+  # so it is asked separately. Last resort, after remote hosts.
+  sig { returns(T::Boolean) }
+  def local_docker_available?
+    CloudProvider::Docker.available_during?(starts_at, ends_at)
+  end
+
   # Prefer a docker host running on the same machine as the user's previous
   # server (matched by hostname), then one in the same location, then any.
   sig { params(hosts: T.untyped).returns(T.nilable(DockerHost)) }

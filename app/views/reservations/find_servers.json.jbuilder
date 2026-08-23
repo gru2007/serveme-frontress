@@ -27,4 +27,8 @@ docker_host_entries = (@docker_hosts || []).map do |dh|
   }
 end
 
-json.servers(docker_host_entries + server_entries)
+# A container on this machine, when one can still be started. Offered first,
+# and identified by the same virtual id the JSON API uses.
+local_docker_entries = @local_docker ? [ CloudProvider::Docker.virtual_server_entry ] : []
+
+json.servers(local_docker_entries + docker_host_entries + server_entries)

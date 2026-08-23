@@ -140,5 +140,11 @@
                       %td= docker_host.location&.name
                       %td= docker_host.hostname
                       %td.ping Checking...
+                - if (local_docker = local_docker_ping_entry(@servers.map(&:ip) + Array(@docker_hosts).flat_map { |dh| [dh.hostname, dh.ip] }))
+                  %tr{data: { ip: local_docker[:ip] }}
+                    %td= local_docker[:name]
+                    %td Local
+                    %td= local_docker[:ip]
+                    %td.ping Checking...
           .mt-3
             %canvas{data: { ping_target: "chart" }, style: "width: 100%; height: 200px;"}

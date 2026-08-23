@@ -33,6 +33,54 @@ module CloudProvider
       server_id.to_i == LOCAL_VIRTUAL_SERVER_ID
     end
 
+    # The port the first container on this machine gets; CloudServer counts up
+    # from here per container. Shown before a reservation exists, when which
+    # port it will land on is not known yet.
+    DEFAULT_GAME_PORT = 27015
+
+    # The address players connect to for a container started here. --net=host
+    # means it is the machine's own address, which is what DOCKER_HOST_IP names
+    # and what server_ip hands back once the container is up.
+    sig { returns(String) }
+    def self.public_host
+      ENV["DOCKER_HOST_IP"].presence || Frontress.direct_host
+    end
+
+    # This machine's container capacity as one pickable "server". The web form,
+    # the JSON API and the coordinator all offer the same entry, so it is
+    # described once here instead of in three views that drift apart.
+    sig { returns(T::Hash[Symbol, T.untyped]) }
+    def self.virtual_server_entry
+      host = public_host
+      {
+        id: LOCAL_VIRTUAL_SERVER_ID,
+        name: "Local (Docker)",
+        flag: LOCATIONS.fetch("local").fetch(:flag),
+        ip: host,
+        port: DEFAULT_GAME_PORT.to_s,
+        ip_and_port: "#{host}:#{DEFAULT_GAME_PORT}",
+        resolved_ip: nil,
+        sdr: false,
+        latitude: nil,
+        longitude: nil
+      }
+    end
+
+    # Total slots, for the "x / y servers available" counters. Zero when local
+    # containers are switched off, so the totals do not advertise capacity that
+    # cannot be booked.
+    sig { returns(Integer) }
+    def self.total_slots
+      enabled? ? max_containers : 0
+    end
+
+    sig { params(starts_at: T.any(Time, ActiveSupport::TimeWithZone), ends_at: T.any(Time, ActiveSupport::TimeWithZone)).returns(Integer) }
+    def self.slots_available_during(starts_at, ends_at)
+      return 0 unless enabled?
+
+      [ max_containers - container_count_during(starts_at, ends_at), 0 ].max
+    end
+
     # How many containers this machine will run at once. A box that can host
     # four 24-slot servers is not the same box as one that can host twenty.
     sig { returns(Integer) }
@@ -60,11 +108,29 @@ module CloudProvider
     def create_server(cloud_server)
       Rails.logger.info "Docker: Creating container for cloud_server #{cloud_server.id}"
       name = container_name(cloud_server)
-      success = system(*T.unsafe(docker_run_argv(cloud_server)))
-      raise "Docker container failed to start: #{name}" unless success
+      # capture2e, not system: what docker said is the whole diagnosis. "failed
+      # to start" on its own sent people looking at the game image when the
+      # real answer was one line about the socket's permissions.
+      output, status = Open3.capture2e(*T.unsafe(docker_run_argv(cloud_server)))
+      raise "Docker container failed to start: #{name}: #{docker_error_hint(output)}" unless status.success?
 
       Rails.logger.info "Docker: Created container #{name}"
       name
+    end
+
+    # Turns docker's own error into something an operator can act on.
+    sig { params(output: String).returns(String) }
+    def docker_error_hint(output)
+      message = output.to_s.strip.lines.last.to_s.strip
+      if message.include?("permission denied") && message.include?("docker.sock")
+        return "#{message} -- this app is not in the host's docker group. " \
+               "Set DOCKER_GID in .env to `getent group docker | cut -d: -f3` and restart."
+      end
+      if message.match?(/no such (image|host)|not found|manifest unknown/i)
+        return "#{message} -- the image #{docker_image} could not be pulled. Build or push it first."
+      end
+
+      message.presence || "docker said nothing"
     end
 
     sig { override.returns(String) }

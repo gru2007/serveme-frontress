@@ -162,6 +162,46 @@ describe ReservationsController do
     end
   end
 
+  describe '#create with local docker' do
+    let(:local_docker_params) do
+      {
+        reservation: {
+          server_id: CloudProvider::Docker::LOCAL_VIRTUAL_SERVER_ID.to_s,
+          password: "testpass",
+          rcon: "testrcon",
+          enable_plugins: "1",
+          auto_end: "1",
+          starts_at: Time.current.to_s,
+          ends_at: 2.hours.from_now.to_s
+        }
+      }
+    end
+
+    before do
+      allow(CloudProvider::Docker).to receive(:enabled?).and_return(true)
+    end
+
+    it "creates a cloud server reservation on this machine's own daemon" do
+      expect(CloudServerProvisionWorker).to receive(:perform_async)
+
+      post :create, params: local_docker_params
+
+      reservation = Reservation.last
+      expect(reservation.server).to be_a(CloudServer)
+      expect(reservation.server.cloud_provider).to eq("docker")
+      expect(response).to redirect_to(reservation_path(reservation))
+    end
+
+    it "redirects with error when this machine is already at its container limit" do
+      allow(CloudProvider::Docker).to receive(:available_during?).and_return(false)
+
+      post :create, params: local_docker_params
+
+      expect(response).to redirect_to(new_reservation_path)
+      expect(flash[:alert]).to include("as many game servers")
+    end
+  end
+
   describe '#create' do
     it 'renders the new form with an error when an unparseable date is given' do
       post :create, params: { reservation: { starts_at: 'garbage', ends_at: 'garbage', password: 'x', rcon: 'y' } }

@@ -48,7 +48,9 @@ class ReservationsController < ApplicationController
       return
     end
 
-    if docker_host_selected?
+    if local_docker_selected?
+      create_local_docker_reservation
+    elsif docker_host_selected?
       create_docker_host_reservation
     else
       create_regular_reservation
@@ -81,6 +83,8 @@ class ReservationsController < ApplicationController
       end
     elsif @reservation.server.nil? && (docker_host = lucky.available_docker_host)
       create_lucky_docker_host_reservation(lucky, docker_host)
+    elsif @reservation.server.nil? && lucky.local_docker_available?
+      create_lucky_local_docker_reservation(lucky)
     else
       unlucky_response
     end
@@ -369,6 +373,12 @@ class ReservationsController < ApplicationController
     params[:reservation]&.dig(:server_id).to_s.start_with?("dh-")
   end
 
+  # The one host that has no docker_hosts row: this machine.
+  def local_docker_selected?
+    server_id = params[:reservation]&.dig(:server_id).to_s
+    server_id.present? && CloudProvider::Docker.local_server_id?(server_id)
+  end
+
   def unlucky_response
     flash[:alert] = "You're not very lucky, no server is available for the timerange #{@reservation.human_timerange} :("
     redirect_to root_path
@@ -420,10 +430,47 @@ class ReservationsController < ApplicationController
     end
   end
 
+  # Same as create_docker_host_reservation, minus a host to look up: a nil
+  # docker_host_id tells the creator to use this machine's own daemon.
+  def create_local_docker_reservation
+    creator = DockerHostReservationCreator.new(
+      user: current_user,
+      docker_host_id: nil,
+      reservation_params: reservation_params
+    )
+    @reservation = creator.create!
+    flash[:notice] = "Server is being provisioned. This usually takes about 1 minute."
+    redirect_to reservation_path(@reservation)
+  rescue DockerHostReservationCreator::CapacityError => e
+    flash[:alert] = e.message
+    redirect_to new_reservation_path
+  rescue DockerHostReservationCreator::ValidationError => e
+    @reservation = e.reservation
+    @servers = Server.active.not_cloud.ordered.includes(:location)
+    @docker_hosts = DockerHost.active.ordered
+    respond_to do |format|
+      format.html { render :new, status: :unprocessable_entity }
+    end
+  end
+
   def create_lucky_docker_host_reservation(lucky, docker_host)
     creator = DockerHostReservationCreator.new(
       user: current_user,
       docker_host_id: docker_host.id,
+      reservation_params: lucky.docker_host_reservation_params
+    )
+    @reservation = creator.create!
+    flash[:notice] = "Reservation created on #{@reservation.server_name}. The server is being configured, give it a minute to start.".html_safe
+    redirect_to reservation_path(@reservation)
+  rescue DockerHostReservationCreator::CapacityError, DockerHostReservationCreator::ValidationError
+    flash[:alert] = "You're not very lucky, no server is available right now :("
+    redirect_to root_path
+  end
+
+  def create_lucky_local_docker_reservation(lucky)
+    creator = DockerHostReservationCreator.new(
+      user: current_user,
+      docker_host_id: nil,
       reservation_params: lucky.docker_host_reservation_params
     )
     @reservation = creator.create!
