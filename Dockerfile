@@ -150,11 +150,19 @@ COPY --from=build --link "${BUNDLE_PATH}" "${BUNDLE_PATH}"
 COPY --from=build --link /var/cache/bootsnap /var/cache/bootsnap
 COPY --from=build --link --exclude=public/assets /rails /rails
 
-# Run and own only the runtime files as a non-root user for security
+# Run and own only the runtime files as a non-root user for security.
+#
+# Every path compose mounts a named volume on is created here as well. Docker
+# initialises an empty named volume from whatever is at that path in the image,
+# ownership included -- but when the path does not exist in the image it makes
+# the mountpoint root-owned, and this container runs as uid 1000. That is what
+# made ReservationCleanupWorker die with EACCES writing the reservation zip
+# into public/uploads. Creating them here keeps the volumes writable.
 RUN groupadd --system --gid 1000 rails && \
     useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash && \
-    mkdir -p db log storage tmp && \
-    chown -R rails:rails db log storage tmp
+    mkdir -p db log storage tmp tmp/pids tmp/maps \
+             public/uploads public/system server_logs && \
+    chown -R rails:rails db log storage tmp public/uploads public/system server_logs
 
 USER 1000:1000
 

@@ -9,6 +9,22 @@ class ReservationCleanupWorker
 
   sidekiq_options retry: 3, queue: "default"
 
+  # Without this the reservation is stuck on "Zipping files" forever whenever
+  # the job dies: ServerReservationEstimator keeps showing the end progress
+  # until a status after the zipping ones lands. Say what actually happened and
+  # run the rest of the pipeline, which does not depend on the zip file.
+  sidekiq_retries_exhausted do |job, exception|
+    reservation_id = job["args"].first
+    Rails.logger.error("ReservationCleanupWorker: Giving up on reservation #{reservation_id}: #{exception.class}: #{exception.message}")
+
+    reservation = Reservation.find_by(id: reservation_id)
+    if reservation
+      reservation.status_update("Failed to zip logs and demos")
+      LogScanWorker.perform_async(reservation_id)
+      MatchStatsWorker.perform_async(reservation_id)
+    end
+  end
+
   attr_accessor :reservation, :server, :temp_directory_path
 
   def perform(reservation_id, temp_directory_path)
