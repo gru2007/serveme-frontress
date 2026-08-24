@@ -219,6 +219,24 @@ to paste into `coordinator.json`:
   "api_key": "...", "prefer_docker": true, "reserve_mins": 120 }
 ```
 
+### When matchmaking says there is no server
+
+The coordinator logs `no server: no server available` when
+`POST /api/reservations/find_servers` answers with an empty list. That one
+answer covers a spent free-server quota, a container limit, servers held back
+as out of date, and machines that really are all booked -- and it looks the
+same from the game either way. Ask which one it is:
+
+```bash
+docker compose exec web bin/rails frontress:availability API_KEY=<the coordinator's key>
+```
+
+It checks each cause separately, as the coordinator's own user and over the
+window it actually books. That window is `pool.max_match_secs` -- three hours
+by default -- and every availability rule here is evaluated over it, so a
+reservation that never ended holds its server against matchmaking for the full
+three hours rather than until the match is over.
+
 ### What a match reservation carries
 
 Three fields on a reservation make it a match rather than a booking:
