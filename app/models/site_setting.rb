@@ -34,7 +34,13 @@ class SiteSetting < ActiveRecord::Base
 
   sig { params(user: User, starts_at: T.any(Time, ActiveSupport::TimeWithZone), ends_at: T.any(Time, ActiveSupport::TimeWithZone)).returns(T::Boolean) }
   def self.free_server_limit_reached?(user, starts_at, ends_at)
-    return false if user.donator?
+    # Donators paid their way past the ration. So, in a different way, does a
+    # Trusted API client: the matchmaking coordinator is not a free user
+    # competing for a free server, it books on behalf of a match this site
+    # formed. A quota meant to stop one person taking every server would
+    # otherwise stop matchmaking outright -- and silently, because a quota
+    # refusal and an empty rack both come back as "no servers free".
+    return false if user.donator? || user.trusted_api?
 
     limit = free_server_limit
     return false unless limit

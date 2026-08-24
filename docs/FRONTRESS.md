@@ -237,6 +237,14 @@ by default -- and every availability rule here is evaluated over it, so a
 reservation that never ended holds its server against matchmaking for the full
 three hours rather than until the match is over.
 
+Note that **the free-server quota is checked before capacity**, and zeroes the
+answer whatever the racks look like: `free_server_limit` set to `0` means no
+free user may reserve anything at all, which reads from the game as "all
+servers are busy". The coordinator is exempt from it as a member of the
+**Trusted API** group -- it books for a match this site formed, not as one more
+person taking a free server -- so a coordinator user created by
+`frontress:coordinator_key` is never quota-limited.
+
 ### What a match reservation carries
 
 Three fields on a reservation make it a match rather than a booking:
