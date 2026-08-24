@@ -22,7 +22,14 @@ module Api
 
     def find_servers
       @reservation = new_reservation
-      @servers = free_servers.where(sdr: false)
+
+      # The Frontress coordinator understands SDR reservations (it waits for
+      # "SDR Ready" and consumes sdr_ip/sdr_port), so hiding SDR-backed
+      # physical servers here makes an actually-free server look busy to
+      # matchmaking. The normal reservation availability rules already live
+      # in free_servers; do not apply a second transport-specific filter.
+      @servers = free_servers
+
       @docker_hosts = free_docker_hosts
       @local_docker = local_docker_available?
       render :find_servers
