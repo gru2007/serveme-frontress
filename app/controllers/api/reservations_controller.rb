@@ -166,6 +166,8 @@ module Api
       else
         Rails.logger.warn "API: User: #{api_user.nickname} - Validation errors: #{@reservation.errors.full_messages.join(', ')}"
         @servers = free_servers
+        @docker_hosts = free_docker_hosts
+        @local_docker = local_docker_available?
         render :find_servers, status: :bad_request
       end
     end
@@ -182,8 +184,11 @@ module Api
     rescue DockerHostReservationCreator::CapacityError => e
       render json: { error: e.message }, status: :unprocessable_entity
     rescue DockerHostReservationCreator::ValidationError => e
+      Rails.logger.warn "API: User: #{api_user.nickname} - Validation errors: #{e.reservation.errors.full_messages.join(', ')}"
       @reservation = e.reservation
       @servers = free_servers
+      @docker_hosts = free_docker_hosts
+      @local_docker = local_docker_available?
       render :find_servers, status: :bad_request
     end
 

@@ -40,7 +40,7 @@ class SiteSetting < ActiveRecord::Base
     # formed. A quota meant to stop one person taking every server would
     # otherwise stop matchmaking outright -- and silently, because a quota
     # refusal and an empty rack both come back as "no servers free".
-    return false if user.donator? || user.trusted_api?
+    return false if user.exempt_from_reservation_limits?
 
     limit = free_server_limit
     return false unless limit

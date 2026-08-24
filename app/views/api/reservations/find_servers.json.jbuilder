@@ -1,5 +1,13 @@
 # frozen_string_literal: true
 
+# A failed create renders this same view with status 400, so the errors have to
+# travel with it: without them the body reads as "here are the servers you can
+# have", and a client (the coordinator, or anybody reading its logs) cannot
+# tell a rejected reservation from an empty pool.
+if @reservation&.errors&.any?
+  json.error @reservation.errors.full_messages.to_sentence
+  json.errors @reservation.errors.full_messages
+end
 json.reservation do
   json.partial! "api/reservations/reservation", reservation: @reservation
 end

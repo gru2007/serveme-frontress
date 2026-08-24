@@ -35,6 +35,13 @@ class Reservation < ActiveRecord::Base
 
   delegate :donator?, to: :user, prefix: false
 
+  # The rations the validators below skip for donators are skipped for the game
+  # coordinator too; see User#exempt_from_reservation_limits?.
+  sig { returns(T::Boolean) }
+  def user_exempt_from_limits?
+    !!user&.exempt_from_reservation_limits?
+  end
+
   include ReservationServerInformation
   include ReservationValidations
   include Mitigations
@@ -253,7 +260,7 @@ class Reservation < ActiveRecord::Base
 
   sig { returns(Integer) }
   def inactive_minute_limit
-    return 240 if user&.admin? || user&.donator?
+    return 240 if user_exempt_from_limits?
 
     45
   end

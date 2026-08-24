@@ -12,14 +12,14 @@ module ReservationValidations
       validates_presence_of :user, :password, :rcon, :starts_at, :ends_at
       validates_presence_of :server_id
       validates :password, :tv_password, :tv_relaypassword, length: { maximum: 60 }
-      validates_with Reservations::UserIsAvailableValidator,                  unless: :donator?
+      validates_with Reservations::UserIsAvailableValidator,                  unless: :user_exempt_from_limits?
       validates_with Reservations::ServerIsAvailableValidator,                if: :check_server_available?
       validates_with Reservations::ReservableByUserValidator,                 if: :check_server_available?
       validates_with Reservations::LengthOfReservationValidator
       validates_with Reservations::ChronologicalityOfTimesValidator
       validates_with Reservations::StartsNotTooFarInPastValidator,            on: :create
-      validates_with Reservations::OnlyOneFutureReservationPerUserValidator,  unless: :donator?
-      validates_with Reservations::StartsNotTooFarInFutureValidator,          unless: :donator?
+      validates_with Reservations::OnlyOneFutureReservationPerUserValidator,  unless: :user_exempt_from_limits?
+      validates_with Reservations::StartsNotTooFarInFutureValidator,          unless: :user_exempt_from_limits?
       validates_with Reservations::CloudServerConcurrencyValidator,           on: :create
       validates_with Reservations::DockerHostCapacityValidator,               on: :create
       validates_with Reservations::DockerImageStaleValidator,                 on: :create

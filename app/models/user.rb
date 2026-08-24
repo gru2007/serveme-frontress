@@ -105,6 +105,22 @@ class User < ActiveRecord::Base
     @trusted_api ||= group_ids.include?(Group.trusted_api_group.id)
   end
 
+  # Whether the reservation rations are meant for this user at all.
+  #
+  # Every one of them -- one server at a time, one planned reservation, two
+  # hours, 45 idle minutes -- exists to divide a finite pool between people.
+  # The game coordinator is not one of the people it is divided between: it is
+  # the site booking servers for the matches the site formed, several at once,
+  # for as long as a match lasts. Rationing it does not free a server for
+  # anybody, it just fails matches. Trusted API is already what exempts it from
+  # the free-server quota (see SiteSetting) and what lets it make ranked
+  # reservations (see Reservations::MatchValidator), so it is the same trust
+  # decision, applied consistently.
+  sig { returns(T::Boolean) }
+  def exempt_from_reservation_limits?
+    admin? || donator? || trusted_api?
+  end
+
   sig { returns(T.nilable(T::Boolean)) }
   def banned?
     return false if ReservationPlayer.whitelisted_uid?(uid)
@@ -123,9 +139,12 @@ class User < ActiveRecord::Base
     ip_reason.is_a?(String) ? ip_reason : nil
   end
 
+  # The game coordinator books a whole match, not a pickup hour: pool
+  # .max_match_secs is 3 hours by default, and a 2 hour cap silently turned
+  # every matchmaking reservation into a validation error.
   sig { returns(ActiveSupport::Duration) }
   def maximum_reservation_length
-    if admin? || donator?
+    if exempt_from_reservation_limits?
       10.hours
     else
       2.hours
@@ -134,7 +153,7 @@ class User < ActiveRecord::Base
 
   sig { returns(ActiveSupport::Duration) }
   def reservation_extension_time
-    if donator?
+    if exempt_from_reservation_limits?
       1.hour
     else
       20.minutes
@@ -153,7 +172,7 @@ class User < ActiveRecord::Base
 
   sig { returns(T::Boolean) }
   def can_use_cloud_servers?
-    admin? || donator? || cloud_member?
+    exempt_from_reservation_limits? || cloud_member?
   end
 
   sig { returns(T::Boolean) }
@@ -163,7 +182,7 @@ class User < ActiveRecord::Base
 
   sig { returns(T::Boolean) }
   def cloud_server_access?
-    admin? || cloud_member?
+    admin? || trusted_api? || cloud_member?
   end
 
   sig { returns(T.nilable(Reservation)) }

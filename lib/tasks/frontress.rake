@@ -117,6 +117,14 @@ namespace :frontress do
     # coordinator is never offered.
     offered = reached ? 0 : capacity
 
+    # Capacity is only half of "can it book": the reservation still has to be
+    # one this user is allowed to make, and a window longer than their maximum
+    # is refused with servers standing free. That refusal is a 400 on create,
+    # not an empty find_servers, which is why it can hide behind a healthy
+    # looking availability report.
+    max_length = user.maximum_reservation_length
+    too_long = minutes.minutes > max_length
+
     rows = {
       "free_server_limit" => limit.nil? ? "(unset: no quota)" : limit,
       "limit reached for this user" => reached,
@@ -125,13 +133,24 @@ namespace :frontress do
       "local docker has room" => local_capacity,
       "remote docker hosts with room" => host_capacity,
       "bare-metal servers free" => bare_capacity,
-      "find_servers would offer" => offered
+      "find_servers would offer" => offered,
+      "exempt from per-user limits" => user.exempt_from_reservation_limits?,
+      "maximum reservation length" => "#{(max_length / 60).to_i} minutes",
+      "window fits in it" => !too_long
     }
     width = rows.keys.map(&:length).max
     rows.each { |k, v| puts "#{k.ljust(width)}  #{v}" }
 
     puts
-    if offered.positive?
+    if too_long
+      puts "Servers are free, but this user may not book #{minutes} minutes: their maximum is"
+      puts "#{(max_length / 60).to_i}. Creating the reservation fails with \"maximum reservation time is"
+      puts "#{(max_length / 3600.0).round} hours\" -- a 400 on POST /api/reservations, which the"
+      puts "coordinator reports as \"no server available\". Fix it one of these ways:"
+      puts "  * put this user in the Trusted API group (bin/rails frontress:coordinator_key)"
+      puts "    or the donator group, which raises the maximum to 10 hours;"
+      puts "  * or lower pool.max_match_secs in the coordinator's config to #{(max_length / 60).to_i} minutes or less."
+    elsif offered.positive?
       puts "Matchmaking should be able to book one. If it still cannot, the coordinator is"
       puts "talking to a different site or using a different key than this one."
     elsif reached
@@ -168,9 +187,11 @@ namespace :frontress do
 
     # Trusted API is what lets it book ranked servers: MatchValidator refuses a
     # ranked reservation from anybody else, because a ranked match nobody
-    # formed still reports a result. It is also what exempts the coordinator
-    # from the free-server quota, which is a ration between people and would
-    # otherwise stop matchmaking dead with "no server available".
+    # formed still reports a result. It is also what lifts every limit meant
+    # for a person -- the free-server quota, one server at a time, one planned
+    # reservation, the two hour maximum -- all of which would otherwise stop
+    # matchmaking dead with "no server available". See
+    # User#exempt_from_reservation_limits?.
     unless user.trusted_api?
       user.groups << Group.trusted_api_group
       puts "Added it to the Trusted API group."

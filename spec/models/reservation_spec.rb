@@ -402,6 +402,38 @@ describe Reservation do
       end
     end
 
+    context 'for the game coordinator' do
+      # Trusted API is the coordinator, and it books whole matches: a 2 hour
+      # cap turned every matchmaking reservation into a 400 that read as "no
+      # server available" on the coordinator's side.
+      let(:user) do
+        create(:user).tap { |u| u.groups << Group.trusted_api_group }
+      end
+
+      it 'has an initial duration of no more than 10 hours' do
+        reservation = build :reservation, starts_at: Time.current, ends_at: 3.hours.from_now, user: user
+        reservation.should have(:no).errors_on(:ends_at)
+
+        reservation.ends_at = reservation.starts_at + 601.minutes
+        reservation.should have(1).error_on(:ends_at)
+      end
+
+      it 'books more than one match at the same time' do
+        create :reservation, starts_at: 1.minute.ago, ends_at: 1.hour.from_now, user: user
+
+        second_match = build :reservation, starts_at: Time.current, ends_at: 1.hour.from_now, user: user
+        second_match.should have(:no).errors_on(:starts_at)
+        second_match.should have(:no).errors_on(:ends_at)
+      end
+
+      it 'plans more than one future match' do
+        create :reservation, starts_at: 90.minutes.from_now, ends_at: 3.hours.from_now, user: user
+
+        second_match = build :reservation, starts_at: 4.hours.from_now, ends_at: 5.hours.from_now, user: user
+        second_match.should have(:no).errors_on(:starts_at)
+      end
+    end
+
     context 'for donators' do
       let(:user) { create(:user) }
 
