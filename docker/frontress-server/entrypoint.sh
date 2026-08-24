@@ -141,7 +141,6 @@ mkdir -p "$CFG_DIR"
     # A matchmade server must not act on a map change only once somebody
     # connects: the first player to arrive would land on the previous map.
     echo 'sv_hibernate_when_empty 0'
-    echo 'sv_use_steam_networking 0' # I can't connect, maybe because of that.
     echo 'exec reservation.cfg'
 } > "$CFG_DIR/server.cfg"
 
@@ -217,7 +216,6 @@ echo "Maps installed: $(count_bsp "$ROOT/$GAME_DIR/maps") in $GAME_DIR, $(count_
 
 # 6. Start the server.
 set +e
-FAKEIP_FLAG="${ENABLE_FAKEIP:+-enablefakeip}"
 
 cd "$ROOT"
 export SLR_SNIPER_PATH="${SLR_SNIPER_PATH:-$ROOT/SteamLinuxRuntime_sniper/run}"
@@ -250,9 +248,9 @@ SRCDS_ARGS=(
     +ip 0.0.0.0 -port "$PORT"
     +clientport "$CLIENT_PORT" -steamport "$STEAM_PORT"
     +rcon_password "$RCON_PASSWORD"
+    +sv_use_steam_networking 0
     +map "$FIRST_MAP"
 )
-[ -n "$FAKEIP_FLAG" ] && SRCDS_ARGS+=("$FAKEIP_FLAG")
 [ -n "$GSLT" ] && SRCDS_ARGS+=(+sv_setsteamaccount "$GSLT")
 SRCDS_ARGS+=("$@")
 
