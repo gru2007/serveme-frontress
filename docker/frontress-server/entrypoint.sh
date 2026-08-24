@@ -107,6 +107,28 @@ else
     echo "Frontress build ${INSTALLED_VERSION:-unknown}"
 fi
 
+# 2b. Steam networking off, in the launcher itself.
+#
+# The launcher that ships inside the game payload passes -enablefakeip
+# unconditionally (game/tc2.sh in the game repository). With it the engine asks
+# Steam for a FakeIP, and once that allocation lands the server advertises and
+# answers on the FakeIP instead of the address this site hands players -- which
+# looks exactly like the server going dead the moment Steam is reachable.
+#
+# A launch parameter cannot be undone by a convar, so the only place to turn
+# this off is the launcher script, and it has to happen after the update above:
+# an update unpacks a fresh tc2.sh straight over this one.
+strip_fakeip_launch_option() {
+    local script
+    for script in "$ROOT/tc2.sh" "$ROOT/start_dedicated_tc2.sh"; do
+        [ -f "$script" ] || continue
+        grep -q -- "-enablefakeip" "$script" || continue
+        sed -i 's/[[:space:]]\{1,\}-enablefakeip\b//g' "$script"
+        echo "Removed -enablefakeip from $(basename "$script")"
+    done
+}
+strip_fakeip_launch_option
+
 # 3. server.cfg. Everything reservation-specific is in reservation.cfg, which
 # serveme writes; this is only what has to be true before that arrives.
 #
@@ -141,6 +163,11 @@ mkdir -p "$CFG_DIR"
     # A matchmade server must not act on a map change only once somebody
     # connects: the first player to arrive would land on the previous map.
     echo 'sv_hibernate_when_empty 0'
+    # Also on the command line, where it takes effect before the first level
+    # loads. Repeated here because default.cfg -- which lives inside the pak1
+    # VPK, not in this repository -- may still set it back to 1, and this file
+    # is exec'd on every level init.
+    echo 'sv_use_steam_networking 0'
     echo 'exec reservation.cfg'
 } > "$CFG_DIR/server.cfg"
 

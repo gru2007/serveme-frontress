@@ -109,6 +109,11 @@ FROM frontress-base
 #
 # CACHEBUST is set per build so a new release is actually downloaded rather
 # than served from the layer cache.
+#
+# The launcher in the payload passes -enablefakeip unconditionally, which makes
+# the engine answer on a Steam FakeIP instead of the address this site hands
+# players. It comes out here, and again in entrypoint.sh, because a runtime
+# update unpacks a fresh tc2.sh over this one.
 ARG FRONTRESS_SERVER_URL=https://github.com/gru2007/team-frontress/releases/latest/download/frontress-dedicated-linux.tar.gz
 ARG FRONTRESS_VERSION=0
 ARG CACHEBUST=0
@@ -122,7 +127,8 @@ RUN echo "Frontress build: ${FRONTRESS_VERSION} (cache bust ${CACHEBUST})" \
                 /home/frontress/hlserver/start_dedicated_tc2.sh \
                 /home/frontress/hlserver/srcds_run_64 \
                 /home/frontress/hlserver/tc2_linux64 \
-                /home/frontress/hlserver/steamcmd_update.sh
+                /home/frontress/hlserver/steamcmd_update.sh \
+    && sed -i 's/[[:space:]]\{1,\}-enablefakeip\b//g' /home/frontress/hlserver/tc2.sh
 
 # --chown, because everything after the base stage runs as frontress and a
 # root-owned file here is one this stage cannot even chmod.

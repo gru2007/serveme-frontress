@@ -73,7 +73,7 @@ RSpec.describe CloudProvider::Base do
     context "VM-mode container env contract" do
       let(:rcon_password) { "rcon" }
 
-      it "emits CALLBACK/SSH/RCON/SSH_PORT=2222/ENABLE_FAKEIP/EXPECTED_TF2_VERSION and no per-game ports" do
+      it "emits CALLBACK/SSH/RCON/SSH_PORT=2222/EXPECTED_TF2_VERSION, no FakeIP and no per-game ports" do
         allow(Server).to receive(:latest_version).and_return("9876543")
         script = provider.send(:cloud_init_script, cloud_server)
 
@@ -82,7 +82,7 @@ RSpec.describe CloudProvider::Base do
           expect(script).to match(/-e CALLBACK_TOKEN=vm-callback-token\b/)
           expect(script).to match(/-e SSH_AUTHORIZED_KEYS=(?:"ssh-ed25519 AAAA test@serveme"|ssh-ed25519\\ AAAA\\ test@serveme|'ssh-ed25519 AAAA test@serveme')/)
           expect(script).to match(/-e SSH_PORT=2222\b/)
-          expect(script).to match(/-e ENABLE_FAKEIP=1\b/)
+          expect(script).not_to match(/-e ENABLE_FAKEIP=/)
           expect(script).to match(/-e EXPECTED_TF2_VERSION=9876543\b/)
           %w[PORT TV_PORT CLIENT_PORT STEAM_PORT].each do |var|
             expect(script).not_to match(/-e #{var}=/)

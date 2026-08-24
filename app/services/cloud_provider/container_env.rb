@@ -62,7 +62,6 @@ module CloudProvider
         "RCON_PASSWORD"       => @cloud_server.rcon
       }
       env.merge!(port_env)
-      env["ENABLE_FAKEIP"] = "1"
       env["GAME_DIR"] = Frontress::GAME_DIR
       env["MAPLIST_URL"] = Frontress.maps_url
       env["FASTDL_URL"] = Frontress::FASTDL_URL if Frontress::FASTDL_URL.present?
