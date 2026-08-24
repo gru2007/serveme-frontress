@@ -141,6 +141,7 @@ mkdir -p "$CFG_DIR"
     # A matchmade server must not act on a map change only once somebody
     # connects: the first player to arrive would land on the previous map.
     echo 'sv_hibernate_when_empty 0'
+    echo 'sv_use_steam_networking 0' # I can't connect, maybe because of that.
     echo 'exec reservation.cfg'
 } > "$CFG_DIR/server.cfg"
 
