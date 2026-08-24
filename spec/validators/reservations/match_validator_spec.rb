@@ -18,6 +18,13 @@ RSpec.describe Reservations::MatchValidator do
     expect(reservation_for(user, match_id: "9f2c", match_mode: "casual")).to be_valid
   end
 
+  # "frontline" is what the coordinator itself calls the open queue, and it is
+  # the value it puts in match_mode. Refusing it failed every match with
+  # "Match mode must be one of: casual, ranked".
+  it "accepts the coordinator's name for the open queue" do
+    expect(reservation_for(user, match_id: "9f2c", match_mode: "frontline")).to be_valid
+  end
+
   it "refuses a mode it does not know" do
     reservation = reservation_for(user, match_id: "9f2c", match_mode: "scrim")
     expect(reservation).not_to be_valid
@@ -52,6 +59,10 @@ RSpec.describe Reservations::MatchValidator do
   describe "the ruleset a match runs" do
     it "follows the mode when the reservation does not name one" do
       expect(reservation_for(user, match_id: "9f2c", match_mode: "casual").match_ruleset).to eq("frontress_casual")
+    end
+
+    it "runs the same open-queue ruleset under either of its names" do
+      expect(reservation_for(user, match_id: "9f2c", match_mode: "frontline").match_ruleset).to eq("frontress_casual")
     end
 
     it "is whatever the coordinator asked for when it named one" do

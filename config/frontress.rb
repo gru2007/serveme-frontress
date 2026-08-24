@@ -226,8 +226,16 @@ module Frontress
   # The two rulesets a matchmade server can be asked to run. They are config
   # file names on the server, execed before the map change; the list is here so
   # a reservation cannot ask for something that does not exist.
-  MATCH_MODES = %w[casual ranked].freeze
+  #
+  # The open queue has two names. The coordinator's own vocabulary is
+  # "frontline" (config.Mode, and what it sends as match_mode), while this side
+  # was written as "casual" after the ruleset file it execs. Both are accepted
+  # rather than picked between: renaming either one breaks a deployment where
+  # the site and the coordinator are updated separately, and a mode the site
+  # rejects costs a match, not a cosmetic error.
+  MATCH_MODES = %w[frontline casual ranked].freeze
   MATCH_CONFIGS = {
+    "frontline" => "frontress_casual",
     "casual" => "frontress_casual",
     "ranked" => "frontress_ranked"
   }.freeze
@@ -236,7 +244,7 @@ module Frontress
   # that only the coordinator may book a ranked server: a ranked reservation
   # made by hand is a match with no roster and no result.
   def self.match_config_for(mode)
-    MATCH_CONFIGS[mode.to_s] || MATCH_CONFIGS["casual"]
+    MATCH_CONFIGS[mode.to_s] || MATCH_CONFIGS["frontline"]
   end
 
   def self.coordinator_configured?
