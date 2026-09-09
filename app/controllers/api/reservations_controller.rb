@@ -4,12 +4,18 @@
 module Api
   class ReservationsController < Api::ApplicationController
     include ReservationsHelper
+
+    MAX_LIMIT = 100
+
     before_action :map_legacy_democheck_param, only: [ :create, :update ]
+    before_action :validate_steam_uids
 
     def index
       limit = params[:limit] || 10
-      limit = [ limit.to_i, 500 ].min
-      @reservations = reservations_scope.includes(:user, :reservation_statuses, :server_statistics, :log_uploads, server: :location).order(id: :desc).limit(limit).offset(params[:offset].to_i)
+      limit = [ limit.to_i, MAX_LIMIT ].min
+      # preload, never includes: reservations_scope joins(:user), and includes over a joined
+      # association eager_loads the whole list into one cartesian LEFT OUTER JOIN.
+      @reservations = reservations_scope.preload(:user, :reservation_statuses, :server_statistics, :log_uploads, server: :location).order(id: :desc).limit(limit).offset(params[:offset].to_i)
     end
 
     def new
@@ -114,11 +120,7 @@ module Api
 
     def reservations_scope
       if api_user.admin? || api_user.league_admin? || api_user.streamer? || api_user.trusted_api?
-        if params[:steam_uid]
-          Reservation.joins(:user).where(users: { uid: params[:steam_uid] })
-        else
-          Reservation.joins(:user)
-        end
+        filter_by_steam_uids(Reservation.joins(:user))
       else
         current_user.reservations.joins(:user)
       end
@@ -126,14 +128,25 @@ module Api
 
     def writable_reservations_scope
       if api_user.admin? || api_user.league_admin? || api_user.trusted_api?
-        if params[:steam_uid]
-          Reservation.joins(:user).where(users: { uid: params[:steam_uid] })
-        else
-          Reservation.joins(:user)
-        end
+        filter_by_steam_uids(Reservation.joins(:user))
       else
         current_user.reservations.joins(:user)
       end
+    end
+
+    def filter_by_steam_uids(scope)
+      uids = requested_steam_uids
+      uids.any? ? scope.where(users: { uid: uids }) : scope
+    end
+
+    def requested_steam_uids
+      @requested_steam_uids ||= SteamUidList.parse(params[:steam_uids], params[:steam_uid])
+    end
+
+    def validate_steam_uids
+      return unless SteamUidList.too_many?(requested_steam_uids)
+
+      render json: { error: SteamUidList::TOO_MANY_ERROR }, status: :bad_request
     end
 
     def reservation

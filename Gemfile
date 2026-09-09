@@ -58,6 +58,8 @@ gem "rbzip2"
 # Use Redis for Action Cable
 gem "redis"
 gem "remote_lock", git: "https://github.com/Arie/remote_lock.git"
+# image_processing 2.0 made ruby-vips optional, but Active Storage still requires it at boot
+gem "ruby-vips"
 gem "ruby_parser", require: false
 gem "rubyzip", require: "zip"
 gem "sass"
@@ -91,6 +93,7 @@ group :development do
   gem "rubocop", require: false
   gem "rubocop-sorbet", require: false
   gem "rubocop-rails-omakase", require: false
+  gem "bundler-audit", require: false
   gem "rubocop-performance", require: false
   gem "rubocop-rails", require: false
   gem "tapioca", git: "https://github.com/Shopify/tapioca.git", require: false
