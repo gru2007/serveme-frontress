@@ -66,6 +66,13 @@ describe DockerHostReservationCreator do
       expect(CloudServer.count).to eq(0)
     end
 
+    it "rolls the cloud server back if the reservation insert raises" do
+      allow_any_instance_of(Reservation).to receive(:save).and_raise(ActiveRecord::RecordNotUnique)
+
+      expect { subject.create! }.to raise_error(ActiveRecord::RecordNotUnique)
+      expect(CloudServer.count).to eq(0)
+    end
+
     it "acquires distributed lock on docker host" do
       expect($lock).to receive(:synchronize).with("cloud-reservation-docker-host-#{docker_host.id}", retries: 5, initial_wait: 0.1, expiry: 30).and_call_original
       expect(CloudServerProvisionWorker).to receive(:perform_async)

@@ -73,12 +73,13 @@ class Reservation < ActiveRecord::Base
 
   # Matchmaking reservations: the ones the game coordinator made for a match.
   scope :matchmaking, -> { where.not(match_id: nil) }
+  scope :non_terminal, -> { where(ended: false) }
 
   # A match's reservation, if it still exists. The coordinator asks by match id
   # when it wants to know whether a match still has a server.
   sig { params(match_id: String).returns(T.nilable(Reservation)) }
   def self.for_match(match_id)
-    matchmaking.where(match_id: match_id).order(id: :desc).first
+    non_terminal.matchmaking.where(match_id: match_id).order(id: :desc).first
   end
 
   sig { returns(T::Boolean) }

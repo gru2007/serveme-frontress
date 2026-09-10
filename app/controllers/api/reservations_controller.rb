@@ -13,9 +13,14 @@ module Api
     def index
       limit = params[:limit] || 10
       limit = [ limit.to_i, MAX_LIMIT ].min
+      scope = if params[:match_id].present?
+        current_user.reservations.joins(:user).where(match_id: params[:match_id], ended: false)
+      else
+        reservations_scope
+      end
       # preload, never includes: reservations_scope joins(:user), and includes over a joined
       # association eager_loads the whole list into one cartesian LEFT OUTER JOIN.
-      @reservations = reservations_scope.preload(:user, :reservation_statuses, :server_statistics, :log_uploads, server: :location).order(id: :desc).limit(limit).offset(params[:offset].to_i)
+      @reservations = scope.preload(:user, :reservation_statuses, :server_statistics, :log_uploads, server: :location).order(id: :desc).limit(limit).offset(params[:offset].to_i)
     end
 
     def new
@@ -42,6 +47,23 @@ module Api
     end
 
     def create
+      match_id = reservation_params[:match_id].presence
+      return create_reservation unless match_id
+
+      $lock.synchronize("save-reservation-match-#{current_user.id}-#{match_id}", retries: 7, initial_wait: 0.5, expiry: 120) do
+        @reservation = current_user.reservations.non_terminal.find_by(match_id: match_id)
+        @reservation ? render(:show) : create_reservation
+      end
+    rescue ActiveRecord::RecordNotUnique
+      @reservation = current_user.reservations.non_terminal.find_by(match_id: match_id)
+      raise unless @reservation
+
+      render :show
+    rescue RemoteLock::Error
+      render json: { error: "Reservation is busy, please try again." }, status: :service_unavailable
+    end
+
+    def create_reservation
       starts_at = reservation_params[:starts_at].present? ? Time.zone.parse(reservation_params[:starts_at].to_s) : Time.current
       ends_at = reservation_params[:ends_at].present? ? Time.zone.parse(reservation_params[:ends_at].to_s) : 2.hours.from_now
       if SiteSetting.free_server_limit_reached?(current_user, starts_at, ends_at)
@@ -166,7 +188,14 @@ module Api
               @reservation.save!
             end
           end
-        rescue ActiveRecord::RecordNotUnique, ActiveRecord::ExclusionViolation
+        rescue ActiveRecord::RecordNotUnique
+          existing = current_user.reservations.non_terminal.find_by(match_id: reservation_params[:match_id]) if reservation_params[:match_id].present?
+          if existing
+            @reservation = existing
+          else
+            @reservation.errors.add(:server_id, "already booked in the selected timeframe")
+          end
+        rescue ActiveRecord::ExclusionViolation
           @reservation.errors.add(:server_id, "already booked in the selected timeframe")
         end
       end
@@ -206,7 +235,9 @@ module Api
     end
 
     def reservation_params
-      params.require(:reservation).permit(:starts_at, :ends_at, :server_id, :rcon, :password, :first_map, :tv_password, :tv_relaypassword, :server_config_id, :whitelist_id, :custom_whitelist_id, :auto_end, :enable_plugins, :enable_demos_tf, :democheck_mode, :start_instantly, :match_id, :match_mode, :match_config)
+      permitted = [ :starts_at, :ends_at, :server_id, :rcon, :password, :first_map, :tv_password, :tv_relaypassword, :server_config_id, :whitelist_id, :custom_whitelist_id, :auto_end, :enable_plugins, :enable_demos_tf, :democheck_mode, :start_instantly, :match_mode, :match_config ]
+      permitted << :match_id if action_name == "create"
+      params.require(:reservation).permit(permitted)
     end
 
     def map_legacy_democheck_param

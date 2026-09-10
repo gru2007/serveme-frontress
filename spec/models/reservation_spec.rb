@@ -4,6 +4,17 @@
 require 'spec_helper'
 
 describe Reservation do
+  describe '.for_match' do
+    it 'returns only a non-terminal reservation' do
+      ended = create(:reservation)
+      ended.update_columns(match_id: '0123456789abcdef', ended: true)
+      open = create(:reservation)
+      open.update_columns(match_id: '0123456789abcdef', ended: false)
+
+      expect(described_class.for_match('0123456789abcdef')).to eq(open)
+    end
+  end
+
   context 'with a custom whitelist' do
     it 'saves a new custom whitelist from whitelist.tf' do
       request = double(body: 'the whitelist', success?: true)

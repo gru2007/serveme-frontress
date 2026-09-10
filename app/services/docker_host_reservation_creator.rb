@@ -54,22 +54,21 @@ class DockerHostReservationCreator
       else
         CloudServer.build_for_location("remote_docker", docker_host_id.to_s, rcon: rcon)
       end
-      cloud_server.save!
-
       reservation = T.cast(user.reservations.build(reservation_params.except(:server_id)), Reservation)
       reservation.server = cloud_server
       future_start = reservation_params[:starts_at].present? && Time.zone.parse(reservation_params[:starts_at].to_s)&.future?
       reservation.starts_at = future_start ? reservation_params[:starts_at] : Time.current
       reservation.ends_at = ends_at
 
-      if reservation.save
+      ActiveRecord::Base.transaction do
+        cloud_server.save!
+        unless reservation.save
+          raise ValidationError.new("Reservation invalid", reservation)
+        end
         cloud_server.update!(cloud_reservation_id: reservation.id)
-        schedule_provisioning(cloud_server, reservation, future_start)
-        reservation
-      else
-        cloud_server.destroy
-        raise ValidationError.new("Reservation invalid", reservation)
       end
+      schedule_provisioning(cloud_server, reservation, future_start)
+      reservation
     end
   rescue RemoteLock::Error
     raise CapacityError, "Server is busy, please try again."

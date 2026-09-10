@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_10_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_10_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -325,6 +325,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_10_000000) do
     t.bigint "last_number_of_players", default: 0
     t.datetime "locked_at"
     t.text "logsecret"
+    t.string "match_config"
+    t.string "match_id"
+    t.string "match_mode"
     t.text "original_password"
     t.text "password"
     t.boolean "provisioned", default: false
@@ -349,6 +352,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_10_000000) do
     t.index ["ended", "provisioned", "ends_at"], name: "index_reservations_on_ended_provisioned_ends_at"
     t.index ["ends_at"], name: "idx_17175_index_reservations_on_ends_at"
     t.index ["logsecret"], name: "idx_17175_index_reservations_on_logsecret"
+    t.index ["match_id"], name: "index_reservations_on_match_id", where: "(match_id IS NOT NULL)"
     t.index ["server_config_id"], name: "idx_17175_index_reservations_on_server_config_id"
     t.index ["server_id", "starts_at"], name: "idx_17175_index_reservations_on_server_id_and_starts_at", unique: true
     t.index ["server_id"], name: "idx_17175_index_reservations_on_server_id"
@@ -357,6 +361,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_10_000000) do
     t.index ["starts_at"], name: "idx_17175_index_reservations_on_starts_at"
     t.index ["updated_at"], name: "idx_17175_index_reservations_on_updated_at"
     t.index ["user_id"], name: "idx_17175_index_reservations_on_user_id"
+    t.index ["user_id", "match_id"], name: "index_reservations_on_user_and_open_match", unique: true, where: "((match_id IS NOT NULL) AND (ended = false))"
     t.index ["whitelist_id"], name: "idx_17175_index_reservations_on_whitelist_id"
     t.exclusion_constraint "server_id WITH =, tsrange(starts_at, GREATEST(starts_at, ends_at)) WITH &&", where: "ended = false", using: :gist, name: "no_overlapping_reservations"
   end

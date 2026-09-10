@@ -184,6 +184,29 @@ describe Api::ReservationsController do
       expect(response.body).to include('already booked in the selected timeframe')
     end
 
+    it 'returns the same open reservation when a match creation is retried' do
+      server = create :server, location: create(:location)
+      params = {
+        reservation: {
+          starts_at: Time.current,
+          ends_at: 2.hours.from_now,
+          rcon: 'foo',
+          password: 'bar',
+          server_id: server.id,
+          match_id: '0123456789abcdef'
+        }
+      }
+      expect(ReservationWorker).to receive(:perform_async).once
+
+      post :create, format: :json, params: params
+      first_id = JSON.parse(response.body).dig('reservation', 'id')
+      post :create, format: :json, params: params.deep_dup
+
+      expect(response.status).to eq(200)
+      expect(JSON.parse(response.body).dig('reservation', 'id')).to eq(first_id)
+      expect(Reservation.where(user: @user, match_id: '0123456789abcdef').count).to eq(1)
+    end
+
     context 'with the legacy disable_democheck param' do
       let(:server) { create :server, location: create(:location) }
 
@@ -431,6 +454,20 @@ describe Api::ReservationsController do
 
       expect(response.status).to eql 200
       expect(JSON.parse(response.body)['reservations'].size).to eql(2)
+    end
+
+    it 'returns only the current user open reservation for a match id' do
+      own = create :reservation, user: @api_user
+      own.update_columns(match_id: '0123456789abcdef', ended: false)
+      other = create :reservation, user: create(:user)
+      other.update_columns(match_id: '0123456789abcdef', ended: false)
+      ended = create :reservation, user: @api_user
+      ended.update_columns(match_id: '0123456789abcdef', ended: true)
+
+      get :index, params: { match_id: '0123456789abcdef' }, format: :json
+
+      ids = JSON.parse(response.body)['reservations'].map { |reservation| reservation['id'] }
+      expect(ids).to eq([ own.id ])
     end
 
     it 'returns filtered results for admin' do
