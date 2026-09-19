@@ -192,7 +192,7 @@
             Logout
       - else
         %li.nav-item.d-md-none
-          = link_to '/users/auth/steam', method: :post, class: "nav-link" do
+          = button_to '/users/auth/steam', method: :post, form: { data: { turbo: false }, class: "d-inline" }, class: "nav-link bg-transparent border-0" do
             = image_tag 'sits_small.png', alt: "Sign in with Steam", class: "nav-icon-lg"
             Login with Steam
     %ul.nav.navbar-nav.ms-auto.d-none.d-md-flex
@@ -210,5 +210,5 @@
             = link_to users_logout_path, method: :delete do
               %i.fa.fa-sign-out
           - else
-            = link_to '/users/auth/steam', method: :post do
+            = button_to '/users/auth/steam', method: :post, form: { data: { turbo: false }, class: "d-inline" }, class: "border-0 bg-transparent p-0" do
               = image_tag 'sits_small.png', alt: "Sign in with Steam"
