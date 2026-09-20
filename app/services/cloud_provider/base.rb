@@ -203,11 +203,14 @@ module CloudProvider
 
       <<~CLOUD_INIT
         #!/bin/bash
+        set -e
         #{cloud_init_pre_docker}
         #{cloud_init_seccomp_profile}
         #{cloud_init_docker_pull(cloud_server, image)}
+        #{Tf2Assets.bootstrap_command(image: image)}
         docker run -d --restart unless-stopped --cap-add=NET_ADMIN --network host \\
           --security-opt seccomp=/etc/docker/seccomp-tf2.json \\
+          --mount #{Shellwords.shellescape(Tf2Assets.mount_spec)} \\
         #{env_lines}
           #{image}
       CLOUD_INIT

@@ -34,6 +34,8 @@ describe DockerHostImagePullWorker do
         ssh = instance_double(Net::SSH::Connection::Session)
         allow(Net::SSH).to receive(:start).and_yield(ssh)
         allow(ssh).to receive(:exec!).and_return("Status: Image is up to date for #{Frontress::SERVER_IMAGE}")
+        allow(ssh).to receive(:exec!).with(Tf2Assets.bootstrap_command(image: Frontress::SERVER_IMAGE))
+          .and_return(Tf2Assets::READY_TOKEN)
 
         worker.perform(host.id)
 
@@ -54,6 +56,8 @@ describe DockerHostImagePullWorker do
         ssh = instance_double(Net::SSH::Connection::Session)
         allow(Net::SSH).to receive(:start).and_yield(ssh)
         allow(ssh).to receive(:exec!).and_return("")
+        allow(ssh).to receive(:exec!).with(Tf2Assets.bootstrap_command(image: Frontress::SERVER_IMAGE))
+          .and_return(Tf2Assets::READY_TOKEN)
 
         worker.perform(host.id)
 
@@ -66,12 +70,25 @@ describe DockerHostImagePullWorker do
         ssh = instance_double(Net::SSH::Connection::Session)
         allow(Net::SSH).to receive(:start).and_yield(ssh)
         allow(ssh).to receive(:exec!).and_return("")
+        allow(ssh).to receive(:exec!).with(Tf2Assets.bootstrap_command(image: Frontress::SERVER_IMAGE))
+          .and_return(Tf2Assets::READY_TOKEN)
 
         worker.perform(host.id)
 
         expect(ssh).not_to have_received(:exec!).with("docker image prune -f")
         expect(ssh).to have_received(:exec!).with("docker image prune -f --filter until=168h")
         expect(ssh).to have_received(:exec!).with(/docker rmi #{Regexp.escape(Frontress.server_image_repo)}/)
+      end
+
+      it "raises when the shared asset bootstrap fails so Sidekiq retries" do
+        host = create(:docker_host)
+        ssh = instance_double(Net::SSH::Connection::Session)
+        allow(Net::SSH).to receive(:start).and_yield(ssh)
+        allow(ssh).to receive(:exec!).and_return("")
+        allow(ssh).to receive(:exec!).with(Tf2Assets.bootstrap_command(image: Frontress::SERVER_IMAGE))
+          .and_return("SteamCMD failed")
+
+        expect { worker.perform(host.id) }.to raise_error(/TF2 asset volume bootstrap failed/)
       end
     end
   end

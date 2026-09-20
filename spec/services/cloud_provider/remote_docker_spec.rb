@@ -84,6 +84,13 @@ RSpec.describe CloudProvider::RemoteDocker do
       ))
     end
 
+    it "mounts the host's shared TF2 assets read-only" do
+      provider.create_server(cloud_server)
+      expect(ssh_session).to have_received(:exec!).with(a_string_matching(
+        /--mount #{Regexp.escape(Shellwords.shellescape(Tf2Assets.mount_spec))}/
+      ))
+    end
+
     it "passes callback URL using SITE_HOST" do
       provider.create_server(cloud_server)
       expect(ssh_session).to have_received(:exec!).with(a_string_matching(

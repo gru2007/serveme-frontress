@@ -6,10 +6,9 @@ class DockerHostImagePullWorker
   sidekiq_options retry: 3, queue: "default"
 
   DOCKERHUB_IMAGE = Frontress::SERVER_IMAGE
-  # The legacy builder's cache *is* the set of dangling per-step images, so a
-  # blanket `docker image prune -f` on the build host throws away the TF2 base
-  # (~15GB steamcmd download) and can even delete a running build's stage images.
-  # Keep anything recent enough to still serve as cache for the next build.
+  # The legacy builder's cache is the set of dangling per-step images. Keep
+  # anything recent enough to still serve as cache for the next build and to
+  # avoid deleting a running build's stage images.
   BUILD_HOST_PRUNE_AGE = "168h"
   # Superseded versioned tags aren't dangling, so they survive the age-filtered
   # prune above and need removing explicitly to bound disk use on the build host.
@@ -40,6 +39,11 @@ class DockerHostImagePullWorker
     Net::SSH.start(host.hostname, host.ssh_user, **opts) do |ssh|
       output = ssh.exec!("docker pull #{DOCKERHUB_IMAGE}")
       Rails.logger.info "DockerHostImagePullWorker: Pulled on #{host.hostname}: #{output&.lines&.last&.strip}"
+      assets_output = ssh.exec!(Tf2Assets.bootstrap_command(image: DOCKERHUB_IMAGE)).to_s
+      unless assets_output.include?(Tf2Assets::READY_TOKEN)
+        raise "TF2 asset volume bootstrap failed on #{host.hostname}: #{assets_output.strip.lines.last}"
+      end
+      Rails.logger.info "DockerHostImagePullWorker: Shared TF2 assets ready on #{host.hostname}"
       cleanup_images(ssh, host)
     end
   end

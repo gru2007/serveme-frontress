@@ -70,6 +70,17 @@ RSpec.describe CloudProvider::Base do
       end
     end
 
+    context "shared TF2 assets" do
+      let(:rcon_password) { "rcon" }
+
+      it "bootstraps a host volume and mounts it read-only in the game container" do
+        script = provider.send(:cloud_init_script, cloud_server)
+
+        expect(script).to include(Tf2Assets.bootstrap_command(image: Frontress::SERVER_IMAGE))
+        expect(script).to include("--mount #{Shellwords.shellescape(Tf2Assets.mount_spec)}")
+      end
+    end
+
     context "VM-mode container env contract" do
       let(:rcon_password) { "rcon" }
 

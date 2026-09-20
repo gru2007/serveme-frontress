@@ -107,8 +107,13 @@ class DockerHostSetupService
       image_check = ssh.exec!("docker image inspect #{DOCKER_IMAGE} > /dev/null 2>&1 && echo EXISTS").to_s.strip
       raise "Image not found after pull. Output: #{output&.strip&.lines&.last}" unless image_check.include?("EXISTS")
 
+      assets_output = ssh.exec!(Tf2Assets.bootstrap_command(image: DOCKER_IMAGE)).to_s
+      unless assets_output.include?(Tf2Assets::READY_TOKEN)
+        raise "TF2 asset volume bootstrap failed. Last line: #{assets_output.strip.lines.last}"
+      end
+
       docker_host.update!(setup_status: "ready")
-      { success: true, message: "Docker image pulled successfully" }
+      { success: true, message: "Docker image and shared TF2 assets are ready" }
     end
   rescue StandardError => e
     { success: false, message: "Image pull failed: #{e.message}" }

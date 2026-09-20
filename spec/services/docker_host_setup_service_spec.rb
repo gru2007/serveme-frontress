@@ -352,11 +352,28 @@ describe DockerHostSetupService do
       allow(Net::SSH).to receive(:start).and_yield(ssh)
       allow(ssh).to receive(:exec!).and_return("Status: Image is up to date")
       allow(ssh).to receive(:exec!).with("docker image inspect #{DockerHostSetupService::DOCKER_IMAGE} > /dev/null 2>&1 && echo EXISTS").and_return("EXISTS\n")
+      allow(ssh).to receive(:exec!).with(Tf2Assets.bootstrap_command(image: DockerHostSetupService::DOCKER_IMAGE))
+        .and_return("TF2 assets already ready\n#{Tf2Assets::READY_TOKEN}\n")
 
       result = subject.pull_image
 
-      expect(result).to eq({ success: true, message: "Docker image pulled successfully" })
+      expect(result).to eq({ success: true, message: "Docker image and shared TF2 assets are ready" })
       expect(docker_host.reload.setup_status).to eq("ready")
+    end
+
+    it "does not mark the host ready when shared TF2 assets fail to bootstrap" do
+      ssh = instance_double(Net::SSH::Connection::Session)
+      allow(Net::SSH).to receive(:start).and_yield(ssh)
+      allow(ssh).to receive(:exec!).and_return("Status: Image is up to date")
+      allow(ssh).to receive(:exec!).with("docker image inspect #{DockerHostSetupService::DOCKER_IMAGE} > /dev/null 2>&1 && echo EXISTS").and_return("EXISTS\n")
+      allow(ssh).to receive(:exec!).with(Tf2Assets.bootstrap_command(image: DockerHostSetupService::DOCKER_IMAGE))
+        .and_return("SteamCMD failed")
+
+      result = subject.pull_image
+
+      expect(result[:success]).to be false
+      expect(result[:message]).to include("TF2 asset volume bootstrap failed")
+      expect(docker_host.reload.setup_status).not_to eq("ready")
     end
 
     it "returns an error when image is not present after pull" do

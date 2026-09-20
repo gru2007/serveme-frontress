@@ -33,6 +33,7 @@ that are ours:
 | | |
 | --- | --- |
 | `FRONTRESS_SERVER_IMAGE` | the game server image. Default `ghcr.io/gru2007/frontress-server:latest` |
+| `FRONTRESS_TF2_ASSETS_VOLUME` | host volume containing one shared copy of TF2 assets. Default `frontress-tf2-assets` |
 | `FRONTRESS_LOCAL_DOCKER` | run game servers on this machine's docker daemon |
 | `DOCKER_GID` | the host's docker group, so the app may use the mounted socket |
 | `DOCKER_HOST_IP` / `CLOUD_CALLBACK_HOST` | how a container reaches this app back |
@@ -46,10 +47,11 @@ docker compose exec web bin/rails frontress:doctor
 
 ## Game servers are containers
 
-There is no "set up a machine for the game" step, because there is nothing to
-set up: the image carries the game payload, the Steam Linux Runtime, TF2's
-content files, the rulesets and the coordinator agent. A machine that can run a
-container can host a match.
+The image carries the game payload, the Steam Linux Runtime, the rulesets and
+the coordinator agent. Valve's large TF2 content depot is different: every
+Docker host stores one copy in the named volume
+`FRONTRESS_TF2_ASSETS_VOLUME`, and all reservation containers mount that copy
+read-only at `/home/frontress/hlserver/tf2`.
 
 Two ways to have containers:
 
@@ -82,9 +84,33 @@ docker build -t ghcr.io/gru2007/frontress-server:latest --build-arg FRONTRESS_VE
 CI does the same thing on `.github/workflows/server-image.yml` and pushes to
 GHCR — run it by hand ("Game server image" → Run workflow) with the payload URL
 and build version, or let a change under `docker/frontress-server/` trigger it.
-Note the size: the base stage downloads the Steam Linux Runtime and TF2's
-content files, about 15GB, which is why the workflow clears the runner's disk
-first.
+The build does not download AppID 232250 and does not put the roughly 15GB TF2
+depot into an image layer. On the Compose host, `docker compose up` runs the
+one-shot `tf2-assets` service before the app starts; on remote hosts, the
+"Pull Docker Image" setup step does the same bootstrap. An existing valid
+volume is detected by its ready marker, so ordinary deploys do not run
+SteamCMD again.
+
+To deliberately update TF2 assets, first stop active reservation containers
+on that host, then run:
+
+```bash
+FRONTRESS_TF2_ASSETS_UPDATE=1 docker compose run --rm tf2-assets
+```
+
+For a remote host, run the equivalent maintenance container there (replace
+the image or volume name if overridden):
+
+```bash
+docker run --rm --user root \
+  -e FRONTRESS_TF2_ASSETS_UPDATE=1 \
+  --mount type=volume,source=frontress-tf2-assets,target=/assets \
+  --entrypoint /home/frontress/hlserver/update-tf2-assets.sh \
+  ghcr.io/gru2007/frontress-server:latest /assets
+```
+
+Do not update the shared volume while game servers are running. They mount it
+read-only, but SteamCMD would still replace files underneath their processes.
 
 Until the image exists somewhere `docker` can pull it from, provisioning fails
 with an image-not-found error, and no amount of correct configuration helps.

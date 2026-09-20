@@ -29,6 +29,7 @@ RSpec.describe CloudProvider::Docker do
         expect(args).to include("--security-opt", "seccomp=unconfined")
         expect(args).to include("--security-opt", "apparmor=unconfined")
         expect(args).to include("--name", "res-#{cloud_server.cloud_reservation_id}-cloud-#{cloud_server.id}")
+        expect(args).to include("--mount", Tf2Assets.mount_spec)
         expect(args).to include("-e", "CALLBACK_URL=#{SITE_URL}/api/cloud_servers/#{cloud_server.id}/ready")
         expect(args).to include("-e", "CALLBACK_TOKEN=test-token")
         expect(args).to include("-e", "SSH_AUTHORIZED_KEYS=ssh-ed25519 AAAA test@cloud")
@@ -38,6 +39,18 @@ RSpec.describe CloudProvider::Docker do
         expect(args).to include("-e", "CLIENT_PORT=41001")
         expect(args).to include("-e", "STEAM_PORT=30001")
         expect(args).to include(Frontress::SERVER_IMAGE)
+      end
+    end
+
+    it "mounts the host's shared TF2 assets read-only" do
+      provider.create_server(cloud_server)
+
+      expect(Open3).to have_received(:capture2e) do |*args|
+        mount = args.fetch(args.index("--mount") + 1)
+        expect(mount).to eq(
+          "type=volume,source=#{Frontress::TF2_ASSETS_VOLUME}," \
+          "target=/home/frontress/hlserver/tf2,readonly"
+        )
       end
     end
 
