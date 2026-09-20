@@ -36,10 +36,9 @@ class CloudImageBuildWorker
       @lock_held = true
 
       run_phase("building") do
-        # Build & tag the expensive intermediate stages first so the post-build
-        # `docker image prune -f` (DockerHostImagePullWorker) cannot delete them.
-        # Otherwise the dangling stage images are pruned and the next build
-        # re-downloads the ~14.5GB TF2 base. See stage_build_commands.
+        # Build & tag the runtime stage first so the post-build `docker image
+        # prune -f` (DockerHostImagePullWorker) cannot delete its cache. TF2's
+        # large depot is a host volume and never participates in this build.
         stage_build_commands.each { |cmd| run_streamed!(*cmd) }
         run_streamed!(*build_command)
       end
@@ -96,7 +95,7 @@ class CloudImageBuildWorker
     args
   end
 
-  # A cache-preserving build of the expensive base stage. Tagging it keeps its
+  # A cache-preserving build of the runtime base stage. Tagging it keeps its
   # layers out of the dangling-image sweep done by `docker image prune -f`
   # (DockerHostImagePullWorker), so later builds reuse the SDK Base runtime
   # instead of downloading it again. The game payload itself is deliberately

@@ -1,21 +1,20 @@
 # The Team Frontress dedicated server, as a container.
 #
 # This is the only supported way to run a game server for this site. Setting a
-# machine up by hand -- steamcmd, the Steam Linux Runtime, TF2's content, the
-# game payload, the configs, an agent to report results -- is six things to get
-# right per machine; a host that can run a container is one.
+# machine up by hand -- steamcmd, the Steam Linux Runtime, the shared TF2
+# assets, the game payload, the configs, an agent to report results -- is six
+# things to get right per machine; a host that can run a container is one.
 #
 # Four stages, so the expensive one is cached:
 #
 #   rcon-build      a tiny RCON client, for the healthcheck and shutdown
 #   agent-build     greyline-agent, which reports matches to the coordinator
-#   frontress-base  Ubuntu + steamcmd + Steam Linux Runtime + TF2 content
+#   frontress-base  Ubuntu + steamcmd + Steam Linux Runtime
 #   final           our own game payload, configs and entrypoint
 #
-# frontress-base is ~15GB of downloads and changes only when Valve ships TF2
-# content; the payload on top of it changes every build. Build just the base
-# with `--target frontress-base`, which is what CloudImageBuildWorker does to
-# keep it out of the dangling-image sweep.
+# TF2's large AppID 232250 depot deliberately is not an image layer. Each host
+# keeps one copy in a named Docker volume, populated by update-tf2-assets.sh,
+# and every reservation mounts that copy read-only.
 
 # ============================================================
 # Stage: rcon-build
@@ -76,25 +75,16 @@ ENV USER=frontress
 USER frontress
 WORKDIR /home/frontress/hlserver
 
-# What our payload needs underneath it, and neither of these is ours:
+# What our payload needs underneath it and is small enough to belong in the
+# image:
 #
 #   1628350  Steam Linux Runtime 3.0 (sniper). tc2.sh runs the server inside it.
-#   232250   TF2's dedicated content, mounted by gameinfo as ../tf2/tf.
 #
-# Both are anonymous downloads. steamcmd occasionally fails the first attempt
-# with 0x426, so each gets one retry.
-#
-# TF2's maps are kept. gameinfo_server.txt mounts ../tf2/tf as a search path,
-# so they are part of the pool a server can be asked to run -- our own maps are
-# an addition to that pool, not a replacement for it. An earlier revision
-# deleted them here to save a few gigabytes; the cost was that any reservation
-# whose first map came from TF2 booted into no level at all, which takes the
-# whole server down with it (no level means the game DLL never execs
-# server.cfg, so the server has no rcon password either).
+# It is an anonymous download. steamcmd occasionally fails the first attempt
+# with 0x426, so it gets one retry. TF2 content itself is downloaded at deploy
+# time into the host volume, never while this image is being built.
 RUN (/usr/games/steamcmd +force_install_dir /home/frontress/hlserver/SteamLinuxRuntime_sniper +login anonymous +app_update 1628350 validate +quit || \
-     /usr/games/steamcmd +force_install_dir /home/frontress/hlserver/SteamLinuxRuntime_sniper +login anonymous +app_update 1628350 validate +quit) \
-    && (/usr/games/steamcmd +force_install_dir /home/frontress/hlserver/tf2 +login anonymous +app_update 232250 +quit || \
-        /usr/games/steamcmd +force_install_dir /home/frontress/hlserver/tf2 +login anonymous +app_update 232250 +quit)
+     /usr/games/steamcmd +force_install_dir /home/frontress/hlserver/SteamLinuxRuntime_sniper +login anonymous +app_update 1628350 validate +quit)
 
 COPY --from=rcon-build --chown=frontress:frontress /tmp/rcon/rcon /home/frontress/hlserver/rcon
 
@@ -141,7 +131,11 @@ COPY --chown=frontress:frontress base-configs/ /home/frontress/hlserver/tc2/
 
 COPY --chown=frontress:frontress healthcheck.sh /home/frontress/hlserver/healthcheck.sh
 COPY --chown=frontress:frontress entrypoint.sh /home/frontress/hlserver/entrypoint.sh
-RUN chmod +x /home/frontress/hlserver/entrypoint.sh /home/frontress/hlserver/healthcheck.sh /home/frontress/hlserver/greyline-agent
+COPY --chown=frontress:frontress update-tf2-assets.sh /home/frontress/hlserver/update-tf2-assets.sh
+RUN chmod +x /home/frontress/hlserver/entrypoint.sh \
+             /home/frontress/hlserver/healthcheck.sh \
+             /home/frontress/hlserver/update-tf2-assets.sh \
+             /home/frontress/hlserver/greyline-agent
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
     CMD /home/frontress/hlserver/healthcheck.sh

@@ -48,6 +48,7 @@ module CloudProvider
         "docker", "run", "-d", "--net=host",
         *docker_run_security_argv,
         "--name", container_name(cloud_server),
+        "--mount", Tf2Assets.mount_spec,
         *ContainerEnv.to_argv_pairs(env_hash(cloud_server)),
         docker_image
       ]
@@ -63,6 +64,7 @@ module CloudProvider
         # the profile, so this one stays unconditional.
         "--security-opt seccomp=#{SECCOMP_PROFILE}",
         "--name #{Shellwords.shellescape(container_name(cloud_server))}",
+        "--mount #{Shellwords.shellescape(Tf2Assets.mount_spec)}",
         *ContainerEnv.to_shell_args(env_hash(cloud_server)),
         docker_image
       ]
