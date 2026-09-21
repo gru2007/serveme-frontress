@@ -17,8 +17,8 @@ docker compose up -d
 Docker is the supported way to run this, both halves of it: the site is a
 compose stack, and every game server is a container started for one
 reservation. There is no per-machine game installation to maintain -- the image
-carries the game payload, the Steam Linux Runtime, the rulesets and the agent
-that reports match results to the coordinator.
+carries the game payload, the Steam Linux Runtime and the rulesets. The game
+server itself reports native GC status and results to the coordinator.
 
 ## What is different from upstream
 

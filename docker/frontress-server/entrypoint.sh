@@ -11,7 +11,7 @@ set -e
 #   4. write server.cfg, which execs reservation.cfg
 #   5. tell serveme we are reachable; wait for it to push reservation.cfg
 #   6. make sure the first map exists locally
-#   7. start the server, and the coordinator agent if this is a match
+#   7. start the server; its native GC client owns coordinator communication
 #   8. wait until it is actually on a map, then tell serveme it is ready
 #
 # Everything the server needs per match -- password, ruleset, match tag -- is
@@ -301,20 +301,6 @@ fi
 ./start_dedicated_tc2.sh "${SRCDS_ARGS[@]}" &
 SRCDS_PID=$!
 
-# The coordinator agent, if this container is running a match. It reads the
-# match id from sv_tags, keeps the match alive with heartbeats and reports the
-# result when the game ends -- none of which the coordinator can see by itself.
-if [ -n "$GC_URL" ] && [ -n "$GC_SECRET" ]; then
-    echo "Starting greyline-agent for the coordinator at $GC_URL"
-    "$ROOT/greyline-agent" \
-        -coordinator "$GC_URL" \
-        -secret "$GC_SECRET" \
-        -rcon "127.0.0.1:${PORT}" \
-        -rcon-password "${RCON_PASSWORD:-changeme}" \
-        -connect "${SERVER_CONNECT:-}" \
-        -log-listen "127.0.0.1:$((PORT + 100))" &
-fi
-
 # 7. Wait for the game port, make sure a level actually loaded, then tell
 # serveme the server is up.
 
@@ -372,7 +358,7 @@ if [ "$PORT_UP" = 1 ] && [ -x "$ROOT/rcon" ]; then
     [ "$MAP_OK" = 1 ] || echo "WARNING: the server is listening but has no map loaded"
 fi
 
-if [ -n "$CALLBACK_URL" ] && [ "$PORT_UP" = 1 ]; then
+if [ -n "$CALLBACK_URL" ] && [ "$PORT_UP" = 1 ] && [ "$MAP_OK" = 1 ]; then
     for attempt in 1 2 3; do
         if curl -sf --connect-timeout 5 --max-time 10 -X POST "$CALLBACK_URL" \
             -H "X-Callback-Token: ${CALLBACK_TOKEN}" \

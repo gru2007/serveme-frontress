@@ -101,7 +101,7 @@ RSpec.describe CloudProvider::ContainerEnv do
       stub_const("Frontress::COORDINATOR_SECRET", "s3cret")
     end
 
-    it "tells the agent where to report the match" do
+    it "gives the game server its GC session credentials" do
       reservation.update_columns(match_id: "9f2c", match_mode: "ranked")
 
       expect(env["GC_URL"]).to eq("http://gc.example.org:27100")
@@ -115,8 +115,7 @@ RSpec.describe CloudProvider::ContainerEnv do
       expect(env).not_to have_key("MATCH_ID")
     end
 
-    # A container that is told a match id but not where to report it would
-    # heartbeat into the void; the agent is simply not started in that case.
+    # A match id without a coordinator address cannot open a GC session.
     it "says nothing when no coordinator is configured" do
       stub_const("Frontress::COORDINATOR_URL", "")
       reservation.update_columns(match_id: "9f2c", match_mode: "casual")

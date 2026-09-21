@@ -12,7 +12,7 @@ What that means concretely:
 | the game | AppID `5147520`, mod directory `tc2`, dedicated payload from Tool AppID `5150320` |
 | a server | a `frontress-server` container, started for a reservation and destroyed with it |
 | the rulesets | `frontress_casual` and `frontress_ranked`, from the game repository |
-| matchmaking | the Go coordinator books servers here; an agent in each container reports the result |
+| matchmaking | tf2pickup books servers here; the game speaks native GC status/results directly |
 
 Everything Team Fortress league-shaped is gone: ETF2L/RGL/ozfortress configs,
 whitelist.tf, logs.tf and demos.tf uploads, the TF2 version check against
@@ -48,7 +48,7 @@ docker compose exec web bin/rails frontress:doctor
 
 There is no "set up a machine for the game" step, because there is nothing to
 set up: the image carries the game payload, the Steam Linux Runtime, TF2's
-content files, the rulesets and the coordinator agent. A machine that can run a
+content files and the rulesets. A machine that can run a
 container can host a match.
 
 Two ways to have containers:
@@ -257,8 +257,8 @@ Three fields on a reservation make it a match rather than a booking:
 
 `reservation.cfg` writes the tag and execs the ruleset last, so a ranked match
 cannot inherit a casual convar from anything before it. The container is also
-given `GC_URL`, `GC_SECRET` and `MATCH_ID`, which is what the agent inside it
-needs to report the result.
+given `GC_URL`, `GC_SECRET` and `MATCH_ID`; the dedicated game's
+`ISteamGameCoordinator` transport uses them to authenticate its server session.
 
 **Only the coordinator may book ranked.** `Reservations::MatchValidator`
 refuses a ranked reservation from anyone who is not in the Trusted API or
@@ -271,6 +271,7 @@ against real players' records.
   player queues
         |
    coordinator forms a match, picks a map
+        |  asks tf2pickup to create the durable game
         |  POST /api/reservations/find_servers      (container hosts first)
         |  POST /api/reservations                   (match_id, match_mode, first_map, password)
         v
@@ -278,20 +279,19 @@ against real players' records.
         |  the container writes server.cfg, waits for reservation.cfg
         |  callbacks: ssh_ready -> configs pushed -> tf2_ready
         v
-   coordinator polls the reservation until it is "Ready"
-        |  RCON: sv_password, sv_tags, maxplayers, exec <ruleset>, changelevel
+   tf2pickup waits for the reservation until it is "Ready"
+        |  admission and ruleset are part of the durable game/reservation
         v
-   players connect; greyline-agent heartbeats the match
+   game server opens its authenticated GC session and publishes lobby status
         |
-   game over -> agent POSTs /v1/gs/result to the coordinator
+   game over -> native CMsgGC_Match_Result reaches the coordinator
         |
-   coordinator DELETEs the reservation -> the container is destroyed
+   tf2pickup ends the reservation -> the container is destroyed
 ```
 
-The coordinator waits for the reservation to reach `Ready` before it RCONs
-anything. A container takes half a minute to come up, and an address that is
-not listening yet would be read as "this server is broken" and cost the players
-their match.
+tf2pickup does not publish the assignment until the reservation is ready. A
+container takes time to come up, so clients keep the Valve lobby in setup state
+until the dedicated server acknowledges its roster through GC.
 
 ## Casual and ranked
 

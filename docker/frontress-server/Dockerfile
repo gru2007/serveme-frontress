@@ -2,13 +2,12 @@
 #
 # This is the only supported way to run a game server for this site. Setting a
 # machine up by hand -- steamcmd, the Steam Linux Runtime, TF2's content, the
-# game payload, the configs, an agent to report results -- is six things to get
+# game payload and the configs -- is several things to get
 # right per machine; a host that can run a container is one.
 #
 # Four stages, so the expensive one is cached:
 #
 #   rcon-build      a tiny RCON client, for the healthcheck and shutdown
-#   agent-build     greyline-agent, which reports matches to the coordinator
 #   frontress-base  Ubuntu + steamcmd + Steam Linux Runtime + TF2 content
 #   final           our own game payload, configs and entrypoint
 #
@@ -25,25 +24,6 @@ RUN apt-get update && apt-get install -y build-essential git cmake libglib2.0-de
     && git clone https://github.com/n0la/rcon.git /tmp/rcon \
     && cd /tmp/rcon && sed -i '/ADD_SUBDIRECTORY(tests)/d' CMakeLists.txt && cmake . && make \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# ============================================================
-# Stage: agent-build
-# ============================================================
-# The agent lives in the game repository next to the coordinator it talks to.
-# Only that one directory is fetched: the rest of the repo is the Source engine
-# and is not worth downloading to build a 6MB binary.
-FROM golang:1.24-bookworm AS agent-build
-ARG FRONTRESS_REPO=https://github.com/gru2007/team-frontress.git
-ARG FRONTRESS_REF=main
-RUN git init /src \
-    && cd /src \
-    && git remote add origin "${FRONTRESS_REPO}" \
-    && git config core.sparseCheckout true \
-    && echo "services/coordinator/*" > .git/info/sparse-checkout \
-    && git fetch --depth 1 origin "${FRONTRESS_REF}" \
-    && git checkout FETCH_HEAD \
-    && cd /src/services/coordinator \
-    && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/greyline-agent ./cmd/greyline-agent
 
 # ============================================================
 # Stage: frontress-base
@@ -132,8 +112,6 @@ RUN echo "Frontress build: ${FRONTRESS_VERSION} (cache bust ${CACHEBUST})" \
 
 # --chown, because everything after the base stage runs as frontress and a
 # root-owned file here is one this stage cannot even chmod.
-COPY --from=agent-build --chown=frontress:frontress /out/greyline-agent /home/frontress/hlserver/greyline-agent
-
 # The rulesets a matchmade server execs, and anything else that has to be on
 # every server. They come from the game repository (game/tc2/cfg) and are
 # copied here so the image is self-contained.
@@ -141,7 +119,7 @@ COPY --chown=frontress:frontress base-configs/ /home/frontress/hlserver/tc2/
 
 COPY --chown=frontress:frontress healthcheck.sh /home/frontress/hlserver/healthcheck.sh
 COPY --chown=frontress:frontress entrypoint.sh /home/frontress/hlserver/entrypoint.sh
-RUN chmod +x /home/frontress/hlserver/entrypoint.sh /home/frontress/hlserver/healthcheck.sh /home/frontress/hlserver/greyline-agent
+RUN chmod +x /home/frontress/hlserver/entrypoint.sh /home/frontress/hlserver/healthcheck.sh
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
     CMD /home/frontress/hlserver/healthcheck.sh

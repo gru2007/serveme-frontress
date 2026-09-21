@@ -88,9 +88,8 @@ module CloudProvider
     #
     # The map, the password and the ruleset are already in reservation.cfg, so
     # they are not repeated here. What the container cannot get from a config
-    # file is where to report the result: the agent inside it needs the
-    # coordinator's address and its shared secret, and it needs to know which
-    # match this server is running before the first log line arrives.
+    # file is the authoritative GC session: the game server needs the
+    # coordinator address, shared secret and durable match id before startup.
     sig { params(res: Reservation).returns(T::Hash[String, String]) }
     def match_env(res)
       return {} unless res.match_id.present? && Frontress.coordinator_configured?
