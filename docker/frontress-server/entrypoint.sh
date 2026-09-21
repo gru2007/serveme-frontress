@@ -20,6 +20,20 @@ set -e
 GAME_DIR="${GAME_DIR:-tc2}"
 ROOT="$HOME/hlserver"
 CFG_DIR="$ROOT/$GAME_DIR/cfg"
+TF2_ASSETS_DIR="${TF2_ASSETS_DIR:-$ROOT/tf2}"
+
+# TF2 is intentionally not baked into the image. Every host has one shared
+# named volume and all reservation containers mount it here read-only. Fail
+# before opening SSH or reporting readiness if the host was not bootstrapped;
+# otherwise the engine fails much later with misleading missing-map errors.
+if [ ! -f "$TF2_ASSETS_DIR/.frontress-ready" ] || \
+   [ ! -f "$TF2_ASSETS_DIR/tf/gameinfo.txt" ] || \
+   ! compgen -G "$TF2_ASSETS_DIR/tf/tf2_misc*_dir.vpk" >/dev/null; then
+    echo "ERROR: TF2 asset volume is missing or incomplete at $TF2_ASSETS_DIR" >&2
+    echo "Run the host TF2 asset bootstrap/update command before starting reservations." >&2
+    exit 78
+fi
+echo "Using shared TF2 assets: $(tr '\n' ' ' < "$TF2_ASSETS_DIR/.frontress-ready")"
 
 # Source dedicated servers still look for Steam's client library under
 # ~/.steam/sdk64 even when SteamCMD installed it elsewhere. Ubuntu's steamcmd

@@ -40,6 +40,14 @@ module Frontress
   # docker/frontress-server/.
   SERVER_IMAGE = ENV.fetch("FRONTRESS_SERVER_IMAGE", "ghcr.io/gru2007/frontress-server:latest").freeze
 
+  # The host-scoped Docker volume that stores Valve's large TF2 dedicated
+  # depot. Every reservation on a host mounts the same volume read-only, so a
+  # Frontress image rebuild never copies or uploads those assets.
+  TF2_ASSETS_VOLUME = ENV.fetch("FRONTRESS_TF2_ASSETS_VOLUME", "frontress-tf2-assets").freeze
+  unless TF2_ASSETS_VOLUME.match?(/\A[A-Za-z0-9][A-Za-z0-9_.-]*\z/)
+    raise ArgumentError, "FRONTRESS_TF2_ASSETS_VOLUME must be a Docker volume name"
+  end
+
   # The image without its tag, and the registry it lives in. Split here rather
   # than in five call sites, because "everything after the last colon is the
   # tag" is wrong for a registry with a port in it.
@@ -69,8 +77,8 @@ module Frontress
   # The map a server boots on when a reservation does not name one, and the one
   # a server falls back to when its first map will not load. It is one of ours
   # so that it is present on every build, but a reservation is free to name a
-  # Team Fortress map: the image keeps TF2's content, maps included, and
-  # gameinfo mounts it.
+  # Team Fortress map: the shared asset volume keeps TF2's content, maps
+  # included, and gameinfo mounts it.
   DEFAULT_MAP = ENV.fetch("FRONTRESS_DEFAULT_MAP", "koth_product_final").freeze
 
   # Where clients download maps from. Empty leaves sv_downloadurl unset, which

@@ -21,6 +21,8 @@ x-app: &app
   depends_on:
     migrate:
       condition: service_completed_successfully
+    tf2-assets:
+      condition: service_completed_successfully
   env_file:
     - .env
   environment: &app-env
@@ -52,6 +54,7 @@ x-app: &app
     # Game servers. They are containers, started on this machine's docker
     # daemon (FRONTRESS_LOCAL_DOCKER) or on a remote docker host over SSH.
     FRONTRESS_SERVER_IMAGE: ${FRONTRESS_SERVER_IMAGE:-ghcr.io/gru2007/frontress-server:latest}
+    FRONTRESS_TF2_ASSETS_VOLUME: ${FRONTRESS_TF2_ASSETS_VOLUME:-frontress-tf2-assets}
     FRONTRESS_LOCAL_DOCKER: ${FRONTRESS_LOCAL_DOCKER:-}
     FRONTRESS_LOCAL_DOCKER_MAX_CONTAINERS: ${FRONTRESS_LOCAL_DOCKER_MAX_CONTAINERS:-4}
     FRONTRESS_SERVER_VERSION: ${FRONTRESS_SERVER_VERSION:-}
@@ -116,6 +119,20 @@ x-app: &app
     - serveme
 
 services:
+  # One host, one copy of Valve's TF2 dedicated depot. The updater is part of
+  # the small Frontress server image and skips SteamCMD when the volume already
+  # has a valid ready marker. Reservation containers mount this volume read-only.
+  tf2-assets:
+    image: ${FRONTRESS_SERVER_IMAGE:-ghcr.io/gru2007/frontress-server:latest}
+    user: root
+    restart: "no"
+    entrypoint: ["/home/frontress/hlserver/update-tf2-assets.sh"]
+    command: ["/assets"]
+    environment:
+      FRONTRESS_TF2_ASSETS_UPDATE: ${FRONTRESS_TF2_ASSETS_UPDATE:-0}
+    volumes:
+      - tf2_assets:/assets
+
   db:
     image: ${POSTGRES_IMAGE:-postgres:16-alpine}
     restart: unless-stopped
@@ -213,6 +230,8 @@ volumes:
   server_logs:
   rails_logs:
   maps:
+  tf2_assets:
+    name: ${FRONTRESS_TF2_ASSETS_VOLUME:-frontress-tf2-assets}
 
 networks:
   serveme:
