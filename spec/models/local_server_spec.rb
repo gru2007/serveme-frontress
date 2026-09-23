@@ -81,10 +81,13 @@ describe LocalServer do
 
   describe '#start_reservation' do
     it 'updates the configuration and triggers a restart', :vcr do
-      reservation = stubbed_reservation(enable_plugins?: true, plugins_enabled?: true, enable_mitigations: true)
+      # plugins_enabled? is false throughout this fork -- there is no
+      # SourceMod to enable -- so the lifecycle never reaches enable_plugins
+      # even for a reservation that asked for it.
+      reservation = stubbed_reservation(enable_plugins?: true, plugins_enabled?: false, enable_mitigations: true)
       subject.should_receive(:restart)
-      subject.should_receive(:enable_plugins)
-      subject.should_receive(:add_sourcemod_admin)
+      subject.should_not_receive(:enable_plugins)
+      subject.should_not_receive(:add_sourcemod_admin)
       subject.should_receive(:update_configuration).with(reservation)
       subject.start_reservation(reservation)
     end

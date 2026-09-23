@@ -41,28 +41,25 @@ RSpec.describe CloudProvider::ContainerEnv do
     end
   end
 
+  # This fork ships no SourceMod, so Reservation#plugins_enabled? is false
+  # whatever the reservation or the site settings ask for, and the container is
+  # always told so.
   describe "ENABLE_PLUGINS" do
-    it "is 1 when the reservation wants plugins" do
-      expect(env["ENABLE_PLUGINS"]).to eq("1")
+    it "is 0 even when the reservation asked for plugins" do
+      expect(env["ENABLE_PLUGINS"]).to eq("0")
     end
 
-    it "is 0 when the reservation has plugins disabled" do
-      reservation.update_columns(enable_plugins: false, enable_demos_tf: false)
+    it "is 0 when demos.tf was asked for as well" do
+      reservation.update_columns(enable_plugins: false, enable_demos_tf: true)
 
       expect(env["ENABLE_PLUGINS"]).to eq("0")
     end
 
-    it "is 1 when demos.tf is on even though plugins are off" do
-      reservation.update_columns(enable_plugins: false, enable_demos_tf: true)
-
-      expect(env["ENABLE_PLUGINS"]).to eq("1")
-    end
-
-    it "is 1 when the site setting forces plugins on" do
+    it "is 0 even when the site setting forces plugins on" do
       reservation.update_columns(enable_plugins: false, enable_demos_tf: false)
       allow(SiteSetting).to receive(:always_enable_plugins?).and_return(true)
 
-      expect(env["ENABLE_PLUGINS"]).to eq("1")
+      expect(env["ENABLE_PLUGINS"]).to eq("0")
     end
 
     it "is emitted in VM mode too" do

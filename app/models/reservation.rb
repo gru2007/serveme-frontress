@@ -143,16 +143,29 @@ class Reservation < ActiveRecord::Base
     !persisted? || (persisted? && !active? && !past?)
   end
 
-  # Site settings can be flipped after a reservation was stored, so re-check them
-  # instead of trusting the stored flags alone.
+  # Always false in this fork: there is no SourceMod.
+  #
+  # The frontress-server image carries the game payload, the Steam Linux
+  # Runtime and the rulesets -- and nothing else. There is no
+  # addons/metamod/ to write sourcemod.vdf into, so honouring an API client's
+  # enable_plugins made start_reservation fail twice over: scp died on the
+  # missing directory, and then sourcemod_admin_body asked SteamCondenser to
+  # convert the booking user's uid, which for an API user without a Steam
+  # account is 0 ("SteamID 76561197960265728 is too small"). The whole
+  # ReservationWorker job then retried three times and went to the dead set,
+  # taking the MOTD, the demo and the log collection with it.
+  #
+  # The column and the API parameter stay: refusing a reservation over a flag
+  # this fork cannot honour would be worse than ignoring it.
   sig { returns(T::Boolean) }
   def plugins_enabled?
-    enable_plugins? || enable_demos_tf? || SiteSetting.always_enable_plugins?
+    false
   end
 
+  # Likewise: demos.tf uploads are not part of this fork.
   sig { returns(T::Boolean) }
   def demos_tf_enabled?
-    enable_demos_tf? || SiteSetting.always_enable_demos_tf?
+    false
   end
 
   sig { returns(T::Boolean) }
