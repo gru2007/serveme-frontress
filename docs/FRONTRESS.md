@@ -81,9 +81,18 @@ building it takes minutes, not an afternoon.
 docker build -t ghcr.io/gru2007/frontress-server:latest --build-arg FRONTRESS_VERSION=120125 docker/frontress-server
 ```
 
+Both halves of the image have to come from the game repository's `mm` branch:
+the dedicated payload, because that is the branch with the `tf_mm_match_begin`
+roster gate the matchmaker drives, and `greyline-agent`, which only exists
+there. `FRONTRESS_REF` already defaults to `mm`; if `FRONTRESS_SERVER_URL` is
+left on `releases/latest`, check that the latest release tag was cut from `mm`
+and not from `main`, which carries the other, native-GC architecture and has no
+`tf_mm_*` commands at all.
+
 CI does the same thing on `.github/workflows/server-image.yml` and pushes to
-GHCR — run it by hand ("Game server image" → Run workflow) with the payload URL
-and build version, or let a change under `docker/frontress-server/` trigger it.
+GHCR — run it by hand ("Game server image" → Run workflow) with the payload URL,
+build version and, if you need a different one, the game ref — or let a change
+under `docker/frontress-server/` trigger it.
 The build does not download AppID 232250 and does not put the roughly 15GB TF2
 depot into an image layer. On the Compose host, `docker compose up` runs the
 one-shot `tf2-assets` service before the app starts; on remote hosts, the
@@ -278,7 +287,7 @@ Three fields on a reservation make it a match rather than a booking:
 | | |
 | --- | --- |
 | `match_id` | the coordinator's match id. It becomes `sv_tags "tfmm:<id>"` |
-| `match_mode` | `casual` or `ranked` |
+| `match_mode` | `frontline` (or its alias `casual`) or `ranked` |
 | `match_config` | the ruleset to exec, defaulting from the mode |
 
 `reservation.cfg` writes the tag and execs the ruleset last, so a ranked match

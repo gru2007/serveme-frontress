@@ -26,6 +26,38 @@ RUN apt-get update && apt-get install -y build-essential git cmake libglib2.0-de
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ============================================================
+# Stage: agent-build
+# ============================================================
+# The agent lives in the game repository next to the coordinator it talks to.
+# Only that one directory is fetched: the rest of the repo is the Source engine
+# and is not worth downloading to build a 6MB binary.
+#
+# The ref matters. The game repository carries two matchmaking architectures on
+# two branches, and only one of them has an agent:
+#
+#   mm    the coordinator drives the server over RCON (tf_mm_match_begin and
+#         friends) and greyline-agent reports the result. This is what this
+#         image, this site and tf2pickup are built against.
+#   main  the game speaks to the coordinator itself over a native GC session.
+#         services/coordinator/cmd/greyline-agent does not exist there, so a
+#         build from that ref fails on the go build below.
+#
+# So this is pinned to mm rather than left on a branch name that happens to be
+# the repository default.
+FROM golang:1.24-bookworm AS agent-build
+ARG FRONTRESS_REPO=https://github.com/gru2007/team-frontress.git
+ARG FRONTRESS_REF=mm
+RUN git init /src \
+    && cd /src \
+    && git remote add origin "${FRONTRESS_REPO}" \
+    && git config core.sparseCheckout true \
+    && echo "services/coordinator/*" > .git/info/sparse-checkout \
+    && git fetch --depth 1 origin "${FRONTRESS_REF}" \
+    && git checkout FETCH_HEAD \
+    && cd /src/services/coordinator \
+    && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/greyline-agent ./cmd/greyline-agent
+
+# ============================================================
 # Stage: frontress-base
 # ============================================================
 FROM ubuntu:24.04 AS frontress-base

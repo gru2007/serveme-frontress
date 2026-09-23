@@ -10,7 +10,7 @@ name: Game server image
 
 on:
   push:
-    branches: [master]
+    branches: [master, main]
     paths:
       - "docker/frontress-server/**"
       - ".github/workflows/server-image.yml"
@@ -21,6 +21,9 @@ on:
         required: false
       version:
         description: "Build version, for the image tag (steam.inf PatchVersion)"
+        required: false
+      frontress_ref:
+        description: "Game repo ref to build greyline-agent from (defaults to the Dockerfile's, mm)"
         required: false
 
 permissions:
@@ -59,11 +62,13 @@ jobs:
           IMAGE: ghcr.io/${{ github.repository_owner }}/frontress-server
           SERVER_URL: ${{ inputs.server_url }}
           VERSION: ${{ inputs.version }}
+          FRONTRESS_REF: ${{ inputs.frontress_ref }}
         run: |
           set -euo pipefail
           args=(--build-arg "CACHEBUST=${GITHUB_SHA}")
           [ -n "${SERVER_URL}" ] && args+=(--build-arg "FRONTRESS_SERVER_URL=${SERVER_URL}")
           [ -n "${VERSION}" ] && args+=(--build-arg "FRONTRESS_VERSION=${VERSION}")
+          [ -n "${FRONTRESS_REF}" ] && args+=(--build-arg "FRONTRESS_REF=${FRONTRESS_REF}")
 
           tags=(-t "${IMAGE}:latest")
           [ -n "${VERSION}" ] && tags+=(-t "${IMAGE}:${VERSION}")
