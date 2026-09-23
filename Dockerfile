@@ -122,6 +122,10 @@ LABEL service=serveme
 # Runtime libraries + tools the app shells out to:
 #   libpq5, libmaxminddb0 — Rails DB / GeoIP
 #   openssh-client        — scp/ssh/sftp
+#   procps                — pgrep, which the sidekiq healthcheck in
+#                           docker-compose.yml runs. Without it the check
+#                           exits 127 and the container is permanently
+#                           unhealthy while Sidekiq is in fact fine.
 #   zip                   — local_zip_file_creator
 #   ripgrep               — log_streaming_service.rb shells out to `rg`
 # curl/libjemalloc2/libvips already come from the base stage.
@@ -131,6 +135,7 @@ RUN apt-get update -qq && \
       libmaxminddb0 \
       libyaml-0-2 \
       openssh-client \
+      procps \
       zip \
       ripgrep && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
