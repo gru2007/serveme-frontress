@@ -58,9 +58,20 @@ class CloudServer < RemoteServer
       config: false)
   end
 
+  # Connection mitigations are iptables rules on the machine the container
+  # runs on, and mitigation_ssh_exec below reaches that machine differently
+  # per provider. For "remote_docker" it SSHes into the docker host as root,
+  # which can do it. For local "docker" it runs the command with Open3 --
+  # inside *this* container, which is the Rails image: no iptables, no sudo,
+  # and no access to the host's netfilter tables even if there were.
+  #
+  # So the whole path was dead on a one-box deployment: enable_mitigations
+  # never installed its DROP chain (which is why players could connect at
+  # all), while AllowReservationPlayersWorker logged "sudo: not found" per
+  # player and then marked them whitelisted anyway. Say so instead.
   sig { returns(T::Boolean) }
   def supports_mitigations?
-    true
+    cloud_provider != "docker"
   end
 
   sig { override.returns(T::Boolean) }

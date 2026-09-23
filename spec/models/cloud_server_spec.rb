@@ -180,9 +180,12 @@ describe CloudServer do
       expect(subject.supports_mitigations?).to be true
     end
 
-    it 'returns true for docker provider' do
+    it 'returns false for the local docker provider' do
+      # mitigation_ssh_exec runs the iptables commands with Open3 for this
+      # provider, which means inside the app container: no iptables, no sudo,
+      # and not the host's netfilter tables anyway.
       subject.cloud_provider = "docker"
-      expect(subject.supports_mitigations?).to be true
+      expect(subject.supports_mitigations?).to be false
     end
 
     it 'returns true for remote_docker provider' do
