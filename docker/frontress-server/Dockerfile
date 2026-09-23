@@ -100,6 +100,7 @@ RUN (/usr/games/steamcmd +force_install_dir /home/frontress/hlserver/SteamLinuxR
      /usr/games/steamcmd +force_install_dir /home/frontress/hlserver/SteamLinuxRuntime_sniper +login anonymous +app_update 1628350 validate +quit)
 
 COPY --from=rcon-build --chown=frontress:frontress /tmp/rcon/rcon /home/frontress/hlserver/rcon
+COPY --from=agent-build --chown=frontress:frontress /out/greyline-agent /home/frontress/hlserver/greyline-agent
 
 # ============================================================
 # Stage: final

@@ -292,8 +292,9 @@ Three fields on a reservation make it a match rather than a booking:
 
 `reservation.cfg` writes the tag and execs the ruleset last, so a ranked match
 cannot inherit a casual convar from anything before it. The container is also
-given `GC_URL`, `GC_SECRET` and `MATCH_ID`; the dedicated game's
-`ISteamGameCoordinator` transport uses them to authenticate its server session.
+given `GC_URL`, `GC_SECRET`, `MATCH_ID` and `SERVER_CONNECT`; `greyline-agent`,
+started by `entrypoint.sh` alongside the server, reads them to report the
+match's heartbeat and result back to the coordinator.
 
 **Only the coordinator may book ranked.** `Reservations::MatchValidator`
 refuses a ranked reservation from anyone who is not in the Trusted API or

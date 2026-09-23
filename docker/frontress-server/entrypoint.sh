@@ -255,6 +255,28 @@ count_bsp() {
 echo "First map: $FIRST_MAP (default $DEFAULT_MAP)"
 echo "Maps installed: $(count_bsp "$ROOT/$GAME_DIR/maps") in $GAME_DIR, $(count_bsp "$ROOT/tf2/tf/maps") from Team Fortress"
 
+# 5c. The match-reporting agent (greyline-agent), if this is a coordinator
+# match. GC_URL/GC_SECRET only arrive on a reservation the coordinator itself
+# booked (CloudProvider::ContainerEnv#match_env); a server added by hand runs
+# with neither set, and without them there is nothing for the agent to report
+# to, so it does not start. Containers share the host's network, so its RCON
+# and its own log listener both have to be on port-per-container addresses,
+# same as everything else in this script -- PORT's own +10-per-container
+# spacing keeps AGENT_LOG_PORT collision-free without any new env var.
+AGENT_LOG_PORT="${AGENT_LOG_PORT:-$((PORT + 100))}"
+AGENT_PID=""
+if [ -n "$GC_URL" ] && [ -n "$GC_SECRET" ]; then
+    if [ -x "$ROOT/greyline-agent" ]; then
+        echo "Starting greyline-agent for match ${MATCH_ID:-unknown} (coordinator $GC_URL)"
+        RCON_ADDR="127.0.0.1:${PORT}" RCON_PASSWORD="${RCON_PASSWORD:-changeme}" \
+        LOG_LISTEN="127.0.0.1:${AGENT_LOG_PORT}" \
+            "$ROOT/greyline-agent" &
+        AGENT_PID=$!
+    else
+        echo "WARNING: GC_URL/GC_SECRET given but $ROOT/greyline-agent is missing; match results will not be reported" >&2
+    fi
+fi
+
 # 6. Start the server.
 set +e
 
@@ -268,6 +290,7 @@ graceful_shutdown() {
         timeout 5 "$ROOT/rcon" -H 127.0.0.1 -p "$PORT" -P "${RCON_PASSWORD:-changeme}" sv_logflush 1 2>/dev/null || true
         sleep 2
     fi
+    [ -n "$AGENT_PID" ] && kill "$AGENT_PID" 2>/dev/null || true
     echo "Shutdown complete, exiting."
     exit 0
 }
